@@ -21,6 +21,7 @@ void test_parser_duplicate_redirect_append(void);
 void test_parser_duplicate_redirect_in(void);
 void test_parser_redirect_per_pipeline_command(void);
 void test_shell_context_init(void);
+void test_shell_context_config_env(void);
 void test_shell_context_destroy(void);
 void test_shell_context_destroy_reaps_jobs(void);
 void test_builtin_count(void);
@@ -160,6 +161,7 @@ int main(void)
             {"execute_command_done_job_not_counted", test_execute_command_done_job_not_counted},
             {"command_init", test_command_init},
             {"shell_context_init", test_shell_context_init},
+            {"shell_context_config_env", test_shell_context_config_env},
             {"shell_context_destroy", test_shell_context_destroy},
             {"shell_context_destroy_reaps_jobs", test_shell_context_destroy_reaps_jobs},
             {"system_info_collect_null", test_system_info_collect_null},
@@ -186,7 +188,7 @@ int main(void)
             {"job_shutdown_same_group_descendant", test_job_shutdown_same_group_descendant},
             {"event_shutdown_signal_safety", test_event_shutdown_signal_safety},
             {"system_info_collect_overwrite", test_system_info_collect_overwrite},
-        };
+    };
     printf("======= MiniShell Test =======\n");
     test_run(tests, sizeof(tests) / sizeof(tests[0]));
     test_report();
