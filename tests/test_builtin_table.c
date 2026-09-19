@@ -5,7 +5,7 @@
 void test_builtin_count(void)
 {
     size_t count = builtin_count();
-    TEST_ASSERT_EQ(count, 11);
+    TEST_ASSERT_EQ(count, 12);
 }
 
 void test_builtin_lookup_known(void)
@@ -31,6 +31,13 @@ void test_builtin_lookup_known(void)
         TEST_ASSERT_STR_EQ(entry->name, "dtinfo");
         TEST_ASSERT(entry->handler == builtin_dtinfo);
     }
+    entry = builtin_lookup("hwinfo");
+    TEST_ASSERT_NOT_NULL(entry);
+    if (entry)
+    {
+        TEST_ASSERT_STR_EQ(entry->name, "hwinfo");
+        TEST_ASSERT(entry->handler == builtin_hwinfo);
+    }
 }
 
 void test_builtin_lookup_unknown(void)
@@ -39,22 +46,28 @@ void test_builtin_lookup_unknown(void)
     entry = builtin_lookup("not_a_builtin");
     TEST_ASSERT_NULL(entry);
 }
-
 void test_builtin_get(void)
 {
-    BuiltinEntry *entry;
-    size_t count = builtin_count();
-
-    entry = builtin_get(0);
+    BuiltinEntry *entry = builtin_get(0);
     TEST_ASSERT_NOT_NULL(entry);
-    TEST_ASSERT_STR_EQ(entry->name, "cd");
-    TEST_ASSERT(entry->handler == builtin_cd);
 
-    entry = builtin_get(count - 1);
+    if (entry)
+    {
+        TEST_ASSERT_STR_EQ(entry->name, "cd");
+        TEST_ASSERT(entry->handler == builtin_cd);
+    }
+
+    entry = builtin_get(builtin_count() - 1);
     TEST_ASSERT_NOT_NULL(entry);
-    TEST_ASSERT_STR_EQ(entry->name, "reload");
-    TEST_ASSERT(entry->handler == builtin_reload);
-    entry = builtin_get(count);
+
+    if (entry)
+    {
+        TEST_ASSERT_STR_EQ(entry->name, "reload");
+        TEST_ASSERT(entry->handler == builtin_reload);
+    }
+
+    entry = builtin_get(builtin_count());
     TEST_ASSERT_NULL(entry);
 }
+
 

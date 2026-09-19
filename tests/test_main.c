@@ -83,6 +83,8 @@ void test_job_exit_status_last_process(void);
 void test_job_wait_foreground_pipeline_status(void);
 void test_job_wait_foreground_whole_group_stop(void);
 void test_parser_token_too_long(void);
+void test_hardware_info_collect_null(void);
+void test_hardware_info_collect(void);
 void test_parser_too_many_tokens(void);
 void test_parser_background_must_be_last(void);
 void test_dispatcher_builtin_pipeline_rejected(void);
@@ -194,6 +196,8 @@ int main(void)
             {"device_tree_collect_null", test_device_tree_collect_null},
             {"device_tree_collect", test_device_tree_collect},
             {"system_info_collect_overwrite", test_system_info_collect_overwrite},
+            {"hardware_info_collect_null", test_hardware_info_collect_null},
+            {"hardware_info_collect", test_hardware_info_collect},
     };
     printf("======= MiniShell Test =======\n");
     test_run(tests, sizeof(tests) / sizeof(tests[0]));

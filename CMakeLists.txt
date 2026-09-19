@@ -45,6 +45,8 @@ set(MINISHELL_CORE_SOURCES
     src/event.c
     src/builtin_table.c
     src/system_info.c
+    src/device_tree.c
+    src/hardware_info.c
     src/terminal.c
     common/utils.c
     common/log.c
@@ -86,6 +88,7 @@ target_compile_options(minishell
 )
 
 if(BUILD_TESTING)
+
     set(MINISHELL_UNIT_TEST_SOURCES
         tests/test_main.c
         tests/test_framework.c
@@ -96,6 +99,8 @@ if(BUILD_TESTING)
         tests/test_shell_context.c
         tests/test_builtin_table.c
         tests/test_system_info.c
+        tests/test_device_tree.c
+        tests/test_hardware_info.c
         tests/test_dispatcher.c
         tests/test_executor.c
         tests/test_job.c
@@ -120,6 +125,14 @@ if(BUILD_TESTING)
     target_compile_options(minishell_tests
         PRIVATE
             ${MINISHELL_COMMON_WARNINGS}
+    )
+
+    add_test(
+        NAME minishell_unit_tests
+        COMMAND
+            ${CMAKE_COMMAND} -E env
+            "MINISHELL_TEST_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+            $<TARGET_FILE:minishell_tests>
     )
 
     set(MINISHELL_INTEGRATION_TEST_SOURCES
@@ -158,14 +171,6 @@ if(BUILD_TESTING)
     add_dependencies(minishell_integration_tests minishell)
 
     add_test(
-        NAME minishell_unit_tests
-        COMMAND
-            ${CMAKE_COMMAND} -E env
-            "MINISHELL_TEST_DIR=${CMAKE_CURRENT_BINARY_DIR}"
-            $<TARGET_FILE:minishell_tests>
-    )
-
-    add_test(
         NAME minishell_integration_tests
         COMMAND
             ${CMAKE_COMMAND} -E env
@@ -181,4 +186,7 @@ if(BUILD_TESTING)
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
             TIMEOUT 30
     )
+
 endif()
+
+

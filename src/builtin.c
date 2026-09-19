@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "device_tree.h"
+#include "hardware_info.h"
+
 
 int builtin_cd(Command *cmd, struct ShellContext *ctx)
 {
@@ -256,5 +258,26 @@ int builtin_dtinfo(Command *cmd, struct ShellContext *ctx)
 
     return MiniShell_OK;
 }
+
+
+int builtin_hwinfo(Command *cmd, struct ShellContext *ctx)
+{
+    (void)cmd;
+    (void)ctx;
+
+    HardwareInfo info;
+    int ret = hardware_info_collect(&info);
+
+    if (ret != MiniShell_OK)
+    {
+        return ret;
+    }
+
+    hardware_info_print(&info);
+
+    return MiniShell_OK;
+}
+
+
 
 
