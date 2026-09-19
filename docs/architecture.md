@@ -9,8 +9,6 @@
                           |
                      shell_init
                           |
-                     log_init
-                          |
                 shell_context_init
                           |
                      event_init
@@ -38,99 +36,72 @@
           |
     build_command
           |
-    Command填充
+      Command链
           |
  dispatcher_command
           |
-     |                  |
-  builtin            executor
-     |                  |
-内建命令执行       execute_command
-                        |
-               |                   |
-         execute_single      execute_pipeline
-               |                   |
-            fork()          pipe()/fork()
-               |                   |
-          startup gate        startup gate
-               |                   |
-          setpgid/Job         setpgid/Job
-               |                   |
-       terminal handoff    terminal handoff
-               |                   |
-           release GO          release GO
-               |                   |
-       signal_reset_child  signal_reset_child
-               |                   |
-          setredirect        pipe/redirect
-               |                   |
-            execvp()             execvp()
-               |                   |
-          外部程序执行       Pipeline程序执行
-               |                   |
-       Job/Process管理      Job/Process管理
-               |                   |
-       job_wait_foreground  job_wait_foreground
-               |                   |
-        保存Job termios      保存Job termios
-               |                   |
-        terminal_restore      terminal_restore
-
-
-                shell_cleanup
-                     |
-            shell_context_destroy
-                     |
-                job_shutdown
-                     |
-               signal_shutdown
-                     |
-                event_shut
-                     |
-             terminal_shutdown
-                     |
-                  Shell退出
+     |                    |
+  Builtin              Executor
+     |                    |
+     |               execute_command
+     |                    |
+     |           |------------------|
+     |      execute_single     execute_pipeline
+     |           |                  |
+     |         fork()           pipe()/fork()
+     |           |                  |
+     |      startup gate        startup gate
+     |           |                  |
+     |      Process Group       Process Group
+     |           |                  |
+     |         Job登记            Job登记
+     |           |                  |
+     |      Terminal handoff    Terminal handoff
+     |           |                  |
+     |        release GO          release GO
+     |                              |
+     |------------------------------|
+                    |
+              ShellContext状态
 ```
 
-## V1.5 各层模块调用流程
+V1.6在原有Shell Core之外增加独立Hardware Runtime层:
 
 ```
-输入层
+                    Builtin
+                       |
+       |---------------|---------------|
+       |               |               |
+    sysinfo          dtinfo          hwinfo
+       |               |               |
+system_info      device_tree     hardware_info
+                                       |
+                                   sysfs_io
+                                       |
+                                      /sys
+                                       |
+                                 Linux Kernel
+```
+
+LED控制:
+
+```
+led
  |
-shell.c
+led_control
  |
-ShellContext input_buffer
+sysfs_io
  |
-parser.c
+/sys/class/leds
  |
-Command / Command链
+Linux LED subsystem
  |
-dispatcher.c
- |
- |----------------------|
- |                      |
-builtin.c            executor.c
- |                      |
-父进程内执行          Child/Process Group
- |                      |
-重定向保护             startup gate
- |                      |
-状态返回                fork/exec/pipe
- |                      |
- |                  Job/Process
- |                      |
- |                    job.c
- |                      |
- |                  terminal.c
- |                      |
- |----------------------|
-          |
-   ShellContext状态
+Orange Pi
 ```
 
 ## 输入流程
 
-V1.5不再使用一次getline调用代表一整条命令.
+MiniShell不使用一次getline调用代表一整条命令.
 
 ```
 select
@@ -162,7 +133,15 @@ Shell不会一次预读后续stdin数据
 避免吃掉Foreground Child应该读取的数据
 ```
 
-当输入超过`SHELL_INPUT_SIZE`时,Shell进入discard状态,丢弃当前超长行直到下一次换行,并把状态设置为语法错误.
+当输入超过:
+
+```
+SHELL_INPUT_SIZE
+```
+
+时,Shell进入discard状态.
+
+当前超长行会被丢弃直到下一次换行.
 
 Ctrl+C发生在Prompt输入阶段时:
 
@@ -178,9 +157,66 @@ shell_reset_input
 重新输出Prompt
 ```
 
+## Parser流程
+
+```
+用户输入
+ |
+tokenize
+ |
+TokenList
+ |
+build_command
+ |
+Command / Command链
+```
+
+Parser识别:
+
+```
+Word
+Pipe
+Input Redirect
+Output Redirect
+Append Redirect
+Background
+```
+
+Parser返回状态区分:
+
+```
+空输入
+语法错误
+内存失败
+```
+
+## Dispatcher流程
+
+```
+Command
+ |
+builtin_lookup
+ |
+ |----------------------|
+ |                      |
+Builtin               External
+ |                      |
+Builtin Redirect      execute_command
+ |                      |
+Builtin Handler       Executor
+```
+
+Builtin执行以后会检查:
+
+```
+fflush(stdout)
+```
+
+因此即使Builtin内部逻辑成功,输出设备最终写入失败时仍然返回非0状态.
+
 ## Child启动流程
 
-单命令与Pipeline都使用startup gate.
+Single以及Pipeline都使用startup gate.
 
 ```
 fork
@@ -189,13 +225,13 @@ fork
  |                                |
 Child                           Parent
  |                                |
-block startup signals            setpgid
+Block startup signals            setpgid
  |                                |
-setpgid                          job_add
+setpgid                           job_add
  |                                |
-close Event FD                  process_add
+关闭Shell Event FD              process_add
  |                                |
-wait startup GO           terminal_set_foreground
+等待startup GO             terminal handoff
  |                                |
  |<------------- GO --------------|
  |
@@ -206,11 +242,22 @@ redirect
 execvp
 ```
 
-这个流程保证Foreground Child不会在Parent完成Process Group、Job登记以及Terminal交接前进入用户程序.
+该流程保证Foreground Child不会在Parent完成:
 
-Child在等待startup gate期间暂时Block交互相关Signal,收到GO后恢复默认Signal disposition以及Signal mask,然后才进入redirect/exec阶段.
+```
+Process Group
+Job登记
+Process登记
+Terminal交接
+```
 
-如果startup流程中Parent端发生Job/Process登记失败等问题,未正式发布的Child会进入rollback路径并使用SIGKILL确定性清理,避免STOPPED Child导致无界wait.
+以前进入用户程序.
+
+Child等待startup gate期间暂时Block交互相关Signal.
+
+收到GO以后恢复默认Signal disposition以及Signal mask,然后进入redirect/exec.
+
+如果Parent端发生Job/Process登记失败等问题,未正式发布的Child会进入rollback路径进行确定性清理.
 
 ## Pipeline流程
 
@@ -219,26 +266,32 @@ Command链
  |
 逐个创建pipe/fork
  |
-所有Child进入同一pgid
+全部Child进入同一pgid
  |
 Child等待startup gate
  |
 Parent完成Job/Process登记
  |
-Foreground时完成Terminal交接
+Foreground完成Terminal交接
  |
-一次释放所有Child
+释放全部Child
  |
 Child建立pipe stdin/stdout
  |
-处理本命令redirect
+处理redirect
  |
 execvp
  |
 Parent等待整个Process Group
 ```
 
-Pipeline退出状态继续使用最后一个Process的状态,当前不实现pipefail.
+Pipeline退出状态使用最后一个Process的状态.
+
+当前不实现:
+
+```
+pipefail
+```
 
 ## 后台任务流程
 
@@ -350,7 +403,19 @@ Job结束/再次停止
 terminal_restore
 ```
 
-控制TTY由terminal模块单独打开`/dev/tty`,不依赖STDIN_FILENO,因此fd 0被Builtin重定向后仍然可以进行Foreground Process Group切换.
+控制TTY由terminal模块单独打开:
+
+```
+/dev/tty
+```
+
+因此不依赖:
+
+```
+STDIN_FILENO
+```
+
+fd 0被Builtin重定向以后仍然可以正常完成Foreground Process Group切换.
 
 ## bg流程
 
@@ -373,7 +438,7 @@ Shell继续运行
 ```
 SIGCHLD/SIGINT
  |
-signal handler
+Signal Handler
  |
 设置pending_events
  |
@@ -390,27 +455,32 @@ signal_take_events
 Shell正常上下文处理事件
 ```
 
-Signal Handler只完成轻量事件记录以及self-pipe通知,不会直接调用waitpid、malloc、printf等复杂逻辑.
+Signal Handler只完成轻量事件记录以及self-pipe通知.
+
+不会直接调用:
+
+```
+waitpid
+malloc
+printf
+复杂Job操作
+```
 
 Shell退出时:
 
 ```
 job_shutdown
  |
-结束/回收现有Job
- |
 signal_shutdown
- |
-关闭Signal通知路径
  |
 event_shut
  |
-关闭self-pipe
- |
 terminal_shutdown
+ |
+shell_context_destroy
 ```
 
-这样可以避免Handler仍在使用Event pipe时另一边已经关闭FD的竞态.
+避免Signal Handler仍然使用Event pipe时另一边已经关闭FD.
 
 ## Job Shutdown流程
 
@@ -423,16 +493,18 @@ STOPPED Job先SIGCONT
  |
 有限次数尝试回收
  |
-仍存在的Process Group发送SIGKILL
+仍存在Process Group发送SIGKILL
  |
-waitpid回收MiniShell直接Child
+waitpid回收MiniShell Direct Child
  |
 job_destroy
 ```
 
-Signal范围以Process Group为单位,waitpid只负责MiniShell实际拥有的直接Child.
+Signal范围以Process Group为单位.
 
-即使登记的直接Child已经结束,最终仍会尝试对原pgid进行SIGKILL,用于清理仍留在同组内且忽略SIGTERM的后代进程.
+waitpid只负责MiniShell实际拥有的Direct Child.
+
+即使登记的Direct Child已经结束,最终仍会尝试清理原Process Group中可能残留的后代Process.
 
 ## Builtin重定向流程
 
@@ -458,11 +530,11 @@ clearerr
 
 如果Builtin逻辑本身成功,但最终输出flush失败,命令仍返回非0状态.
 
-如果Shell无法恢复自己的标准流,视为Shell健康状态失败,不会继续假装正常运行.
+如果Shell无法恢复自身标准流,视为Shell健康状态失败.
 
 ## 外部命令退出状态
 
-当前V1.5采用:
+当前V1.6采用:
 
 ```
 0        成功
@@ -473,33 +545,296 @@ clearerr
 128+sig  Signal结束
 ```
 
-Pipeline使用最后一个Process的退出状态.
+Pipeline使用最后一个Process退出状态.
 
 ## Config流程
+
+V1.6配置路径解析:
 
 ```
 Shell启动
  |
-记录启动工作目录
+检查MINISHELL_CONFIG
  |
-生成稳定config_file路径
+获取/proc/self/exe
+ |
+解析Executable Directory
+ |
+解析启动cwd
+ |
+按照优先级查找Config
+ |
+保存稳定config_file
  |
 config_load
- |
-加载temporary config
- |
-完整parse/validate
- |
- |----------------|
- |                |
-成功             失败
- |                |
-commit         保留旧配置
 ```
 
-启动后执行`cd`不会改变`reload`使用的配置来源.
+查找顺序:
 
-V1.5只确定启动时的稳定配置身份,正式ARM Linux安装路径留到V1.6根据真实板端环境决定.
+```
+MINISHELL_CONFIG
+ |
+<exe>/../config/config.conf
+ |
+<exe>/config/config.conf
+ |
+<cwd>/config/config.conf
+ |
+内部默认配置
+```
+
+显式设置:
+
+```
+MINISHELL_CONFIG
+```
+
+时优先使用该文件.
+
+指定文件失败不会静默回退到其他Config.
+
+相对路径在启动时转换成稳定路径.
+
+因此:
+
+```
+cd /tmp
+reload
+```
+
+仍然使用启动时确定的Config来源.
+
+## System Info流程
+
+```
+sysinfo
+ |
+system_info_collect
+ |
+ |-----------------------------|
+ |                             |
+Linux基础信息                ARM板卡信息
+ |                             |
+uname                         Device Tree model
+/proc/meminfo                 sysconf CPU cores
+/proc/uptime                  Thermal soc-thermal
+ |
+SystemInfo
+ |
+system_info_print
+```
+
+当前输出:
+
+```
+Board
+Kernel
+Hostname
+Architecture
+CPU Model
+CPU Cores
+SoC Temperature
+Memory Total
+Memory Available
+Uptime
+```
+
+可选板卡接口不存在时输出:
+
+```
+N/A
+```
+
+不会使Shell退出.
+
+## Device Tree流程
+
+```
+dtinfo
+ |
+device_tree_collect
+ |
+/proc/device-tree
+ |
+ |-------------------------|
+ |            |            |
+model     compatible     chosen/bootargs
+ |            |            |
+ |------- DeviceTreeInfo ---|
+ |
+device_tree_print
+```
+
+Compatible文件内容是:
+
+```
+NUL separated strings
+```
+
+模块逐项解析并保存.
+
+在不存在Device Tree的平台:
+
+```
+available = 0
+```
+
+调用仍然正常返回.
+
+## Hardware Info流程
+
+```
+hwinfo
+ |
+hardware_info_collect
+ |
+ |--------------------------------|
+ |            |          |        |
+Thermal     CPUFreq    Network    LED
+ |            |          |        |
+ |------------ sysfs_io -----------|
+               |
+              /sys
+               |
+          Linux Kernel
+```
+
+对应接口:
+
+```
+/sys/class/thermal
+/sys/devices/system/cpu/cpufreq
+/sys/class/net
+/sys/class/leds
+```
+
+hardware_info负责解释硬件信息.
+
+底层文件访问由sysfs_io统一完成.
+
+## Sysfs流程
+
+文本读取:
+
+```
+sysfs_read_text
+ |
+open(O_RDONLY | O_CLOEXEC)
+ |
+read
+ |
+EINTR处理
+ |
+close
+ |
+去除末尾换行
+```
+
+数字读取:
+
+```
+sysfs_read_text
+ |
+strtol/strtoul
+ |
+检查完整字符串
+ |
+输出数字
+```
+
+写入:
+
+```
+sysfs_write_text
+ |
+open(O_WRONLY | O_CLOEXEC)
+ |
+write
+ |
+EINTR处理
+ |
+close
+```
+
+内部sysfs FD使用:
+
+```
+O_CLOEXEC
+```
+
+避免被Child exec继承.
+
+## LED读取流程
+
+```
+led list / led info
+ |
+hardware_info_collect
+ |
+/sys/class/leds
+ |
+brightness
+max_brightness
+trigger
+```
+
+## LED控制流程
+
+打开LED:
+
+```
+led on <name>
+ |
+检查Name
+ |
+读取max_brightness
+ |
+trigger=none
+ |
+回读Active Trigger
+ |
+brightness=max
+ |
+回读Brightness
+ |
+返回结果
+```
+
+关闭LED:
+
+```
+led off <name>
+ |
+检查Name
+ |
+trigger=none
+ |
+回读Active Trigger
+ |
+brightness=0
+ |
+回读Brightness
+ |
+返回结果
+```
+
+设置Trigger:
+
+```
+led trigger <name> <trigger>
+ |
+检查Name以及Trigger
+ |
+写入trigger
+ |
+读取Active Trigger
+ |
+验证结果
+```
+
+MiniShell不会自动修改sysfs权限.
+
+权限仍由Linux控制.
 
 ## Error处理流程
 
@@ -515,19 +850,23 @@ V1.5只确定启动时的稳定配置身份,正式ARM Linux安装路径留到V1.
 上层负责状态归一以及生命周期决策
 ```
 
-避免上层在已经有具体错误信息后再重复输出无意义的`unknown error`.
+避免上层在已经输出具体错误以后再重复输出无意义错误.
 
 ## 资源释放流程
+
+Command:
 
 ```
 Command创建
  |
-parser填充argv/redirect
+Parser填充argv/redirect
  |
-dispatcher/executor使用
+Dispatcher/Executor使用
  |
 command_free释放
 ```
+
+Job:
 
 ```
 Job创建
@@ -545,6 +884,8 @@ job_remove/job_cleanup_done
 释放Job/Process
 ```
 
+Shell:
+
 ```
 Shell退出
  |
@@ -561,4 +902,131 @@ signal_shutdown
 event_shut
  |
 terminal_shutdown
+ |
+shell_context_destroy
 ```
+
+Sysfs:
+
+```
+open
+ |
+read/write
+ |
+close
+```
+
+## 部署流程
+
+默认部署结构:
+
+```
+/opt/minishell/
+├── bin/
+│   └── minishell
+└── config/
+    └── config.conf
+```
+
+Make部署:
+
+```
+Source
+ |
+make
+ |
+build/default/minishell
+ |
+make install
+ |
+/opt/minishell
+```
+
+临时rootfs:
+
+```
+Source
+ |
+make install DESTDIR=/tmp/minishell-root
+ |
+/tmp/minishell-root/opt/minishell
+ |
+目标rootfs
+```
+
+CMake保持相同最终目录结构.
+
+详细部署流程:
+
+```
+docs/deployment.md
+```
+
+## ARM Runtime Stability流程
+
+```
+普通Build
+ |
+启动一个持续运行MiniShell
+ |
+连续执行大量命令
+ |
+Foreground
+Pipeline
+Redirect
+reload
+Background
+Hardware Info
+ |
+检查/proc/<pid>/fd
+ |
+检查/proc/<pid>/status
+ |
+检查Zombie
+ |
+检查Shell存活
+ |
+exit
+ |
+检查正常退出
+```
+
+稳定性测试不会替代ASan以及Integration Test.
+
+三者关注点分别为:
+
+```
+Integration -> 功能组合正确性
+Sanitizer   -> 内存以及Undefined Behavior
+Stability   -> 长时间资源以及运行状态
+```
+
+## V1.6整体分层
+
+```
+用户输入
+ |
+Shell Core
+ |
+ |--------------------------------------|
+ |                                      |
+Command/Process                         Hardware Runtime
+ |                                      |
+Parser                                 System Info
+Dispatcher                             Device Tree
+Executor                               Hardware Info
+Job                                    LED Control
+Signal                                      |
+Event                                   Sysfs IO
+Terminal                                    |
+ |                                      Linux Kernel
+ |                                           |
+ |-------------------------------------------|
+                     |
+               Orange Pi 5 Plus
+```
+
+V1.6没有把硬件逻辑直接写进Shell核心模块.
+
+后续Device Layer可以继续建立在Hardware Runtime以及现有Event机制之上
+

@@ -16,7 +16,7 @@
 
 - executor.c: 负责外部命令执行,实现fork、execvp、Process Group、startup gate、Pipeline、重定向、失败rollback以及Foreground Job等待
 
-- builtin.c: 负责Shell内部命令实现,包括cd、pwd、exit、help、jobs、status、sysinfo、fg、bg、reload等指令
+- builtin.c: 负责Shell内部命令实现,包括cd、pwd、exit、help、jobs、status、sysinfo、dtinfo、hwinfo、led、fg、bg、reload等指令
 
 - builtin_table.c: 负责Builtin指令集中注册以及查询,避免dispatcher内部大量if/else判断
 
@@ -36,7 +36,15 @@
 
 - config.c: 负责配置初始化、配置解析、事务式配置加载以及reload支持
 
-- system_info.c: 负责设备/系统状态识别,读取Kernel、CPU、Memory、Architecture、Uptime等信息
+- system_info.c: 负责设备以及系统基础状态识别,读取Board、Kernel、CPU、Memory、Architecture、Uptime以及SoC Temperature等信息
+
+- device_tree.c: 负责读取Linux Device Tree运行时信息,包括Model、Compatible以及Boot Args
+
+- hardware_info.c: 负责读取运行时硬件状态,包括Thermal、CPUFreq、Network以及LED
+
+- sysfs_io.c: 提供统一sysfs底层读取以及写入接口
+
+- led_control.c: 负责Linux LED subsystem控制,完成Trigger以及Brightness修改并进行状态回读验证
 
 ## 主要数据结构
 
@@ -111,6 +119,94 @@ max_job
 debug
 ```
 
+- SystemInfo: 保存当前系统以及板卡基础信息
+
+```
+board
+kernel
+hostname
+architecture
+cpu_model
+cpu_cores
+mem_total
+mem_available
+uptime
+soc_temperature
+has_soc_temperature
+```
+
+- DeviceTreeInfo: 保存Device Tree运行时信息
+
+```
+available
+model
+compatible
+compatible_count
+bootargs
+```
+
+- ThermalZoneInfo: 保存单个Thermal Zone信息
+
+```
+name
+type
+temperature
+has_temperature
+```
+
+- CpuFreqPolicyInfo: 保存单个CPUFreq Policy信息
+
+```
+name
+affected_cpus
+driver
+governor
+current_khz
+scaling_min_khz
+scaling_max_khz
+hardware_min_khz
+hardware_max_khz
+has_current
+has_scaling_min
+has_scaling_max
+has_hardware_min
+has_hardware_max
+```
+
+- NetworkInterfaceInfo: 保存单个Network Interface信息
+
+```
+name
+state
+address
+mtu
+has_mtu
+```
+
+- LedInfo: 保存单个LED运行状态
+
+```
+name
+brightness
+max_brightness
+trigger
+has_brightness
+has_max_brightness
+```
+
+- HardwareInfo: 保存当前运行时硬件信息集合
+
+```
+thermal_zones
+thermal_count
+cpu_policies
+cpu_policy_count
+network_interfaces
+network_count
+leds
+led_count
+```
+
 ## Job状态
 
 - JOB_RUNNING: Job中存在正在运行的Process
@@ -169,7 +265,7 @@ Builtin执行完成后会检查`fflush(stdout)`结果,输出设备失败时即�
 
 ## Executor相关函数
 
-- execute_command: 根据Command链选择Single或Pipeline执行
+- execute_command: 根据Command链选择Single或者Pipeline执行
 
 - execute_single: 执行单个外部命令
 
@@ -278,7 +374,335 @@ max_job
 debug
 ```
 
-配置来源在ShellContext初始化时固定,启动后`cd`不会改变reload目标.
+V1.6 Config查找顺序:
+
+```
+MINISHELL_CONFIG
+程序部署目录
+开发目录
+当前工作目录
+内部默认配置
+```
+
+ShellContext初始化时会保存最终Config路径.
+
+启动后:
+
+```
+cd
+```
+
+不会改变:
+
+```
+reload
+```
+
+使用的Config来源.
+
+## System Info相关函数
+
+- system_info_collect: 收集当前系统以及板卡基础状态
+
+- system_info_print: 输出SystemInfo
+
+当前读取:
+
+```
+Board
+Kernel
+Hostname
+Architecture
+CPU Model
+CPU Cores
+SoC Temperature
+Memory Total
+Memory Available
+Uptime
+```
+
+Orange Pi Board信息主要来自:
+
+```
+/proc/device-tree/model
+```
+
+CPU Core通过:
+
+```
+sysconf(_SC_NPROCESSORS_ONLN)
+```
+
+读取.
+
+SoC Temperature通过Thermal Zone中的:
+
+```
+soc-thermal
+```
+
+获取.
+
+## Device Tree相关函数
+
+- device_tree_collect: 收集Device Tree Runtime信息
+
+- device_tree_print: 输出DeviceTreeInfo
+
+主要读取:
+
+```
+/proc/device-tree/model
+/proc/device-tree/compatible
+/proc/device-tree/chosen/bootargs
+```
+
+Compatible内容属于NUL分隔字符串集合,模块会逐项解析.
+
+不存在Device Tree接口时:
+
+```
+available = 0
+```
+
+不会作为Shell致命错误处理.
+
+## Hardware Info相关函数
+
+- hardware_info_collect: 收集全部运行时硬件状态
+
+- hardware_info_print: 输出HardwareInfo
+
+当前收集:
+
+```
+Thermal
+CPUFreq
+Network
+LED
+```
+
+对应Linux接口:
+
+```
+/sys/class/thermal
+/sys/devices/system/cpu/cpufreq
+/sys/class/net
+/sys/class/leds
+```
+
+hardware_info负责解释硬件信息.
+
+底层sysfs访问统一由:
+
+```
+sysfs_io
+```
+
+完成.
+
+## Sysfs相关函数
+
+- sysfs_read_text: 读取sysfs文本属性并去除末尾换行
+
+- sysfs_read_long: 读取有符号数字属性
+
+- sysfs_read_ulong: 读取无符号数字属性
+
+- sysfs_write_text: 写入sysfs文本属性
+
+sysfs文件使用:
+
+```
+O_CLOEXEC
+```
+
+避免内部FD被Child exec继承.
+
+read/write处理:
+
+```
+EINTR
+```
+
+数字解析会检查完整字符串是否合法.
+
+## LED Control相关函数
+
+- led_control_set_on: 将指定LED切换到手动模式并设置最大Brightness
+
+- led_control_set_off: 将指定LED切换到手动模式并将Brightness设置为0
+
+- led_control_set_trigger: 设置指定LED Trigger
+
+on流程:
+
+```
+检查LED Name
+ |
+读取max_brightness
+ |
+trigger=none
+ |
+重新读取trigger
+ |
+写入max_brightness
+ |
+重新读取brightness
+ |
+完成
+```
+
+off流程:
+
+```
+检查LED Name
+ |
+trigger=none
+ |
+重新读取trigger
+ |
+brightness=0
+ |
+重新读取brightness
+ |
+完成
+```
+
+Trigger流程:
+
+```
+检查LED Name以及Trigger
+ |
+写入trigger
+ |
+重新读取Active Trigger
+ |
+验证结果
+```
+
+LED控制不会绕过Linux权限机制.
+
+## Builtin相关功能
+
+当前Builtin Table:
+
+```
+cd
+pwd
+exit
+jobs
+help
+status
+sysinfo
+dtinfo
+hwinfo
+led
+fg
+bg
+reload
+```
+
+其中V1.6新增:
+
+```
+dtinfo
+hwinfo
+led
+```
+
+led支持:
+
+```
+led list
+led info <name>
+led on <name>
+led off <name>
+led trigger <name> <trigger>
+```
+
+`led list`以及`led info`复用HardwareInfo读取结果.
+
+写操作通过:
+
+```
+led_control
+```
+
+完成.
+
+## 外部命令退出状态
+
+当前V1.6采用:
+
+```
+0        成功
+1        普通/内部/重定向失败
+2        Parser语法错误
+126      找到目标但无法执行
+127      命令未找到
+128+sig  Signal结束
+```
+
+Pipeline使用最后一个Process的退出状态.
+
+## 资源生命周期
+
+Command:
+
+```
+Command创建
+ |
+Parser填充argv/redirect
+ |
+Dispatcher/Executor使用
+ |
+command_free
+```
+
+Job:
+
+```
+Job创建
+ |
+job_add
+ |
+process_add
+ |
+Process运行/停止/结束
+ |
+job_reap
+ |
+job_remove/job_cleanup_done
+ |
+释放Job/Process
+```
+
+Shell:
+
+```
+Shell退出
+ |
+job_shutdown
+ |
+signal_shutdown
+ |
+event_shut
+ |
+terminal_shutdown
+ |
+shell_context_destroy
+```
+
+Sysfs:
+
+```
+open
+ |
+read/write
+ |
+close
+```
 
 ## 测试文件
 
@@ -296,9 +720,17 @@ debug
 
 - test_shell_context.c: 测试ShellContext初始化、稳定Config路径以及销毁
 
-- test_builtin_table.c: 测试Builtin Table查询功能
+- test_builtin_table.c: 测试Builtin Table查询以及V1.6新增Builtin
 
 - test_system_info.c: 测试System Info读取以及重复覆盖
+
+- test_device_tree.c: 测试Device Tree接口以及无Device Tree平台行为
+
+- test_hardware_info.c: 测试Hardware Info收集以及数量边界
+
+- test_sysfs_io.c: 测试公共sysfs I/O参数、文本以及数字处理
+
+- test_led_control.c: 测试LED Name以及Trigger非法输入
 
 - test_dispatcher.c: 测试Builtin/External分发以及Builtin Redirect
 
@@ -330,13 +762,31 @@ debug
 
 - test_shell_pty.c: 使用PTY测试Ctrl+C、Ctrl+Z、fg、bg、Terminal Job Control、FIFO Signal、termios以及后台启动规则
 
+## Stability测试文件
+
+- arm_runtime_stability.sh: 在Orange Pi中持续运行同一个MiniShell进程,进行Foreground、Pipeline、Redirect、reload、Background以及Hardware Info压力验证
+
+主要检查:
+
+```
+FD
+RSS
+Zombie
+Shell存活
+Shell退出
+Config reload
+Hardware Runtime
+```
+
 ## 当前测试状态
+
+Orange Pi 5 Plus最终验证:
 
 ```
 Unit Test:
 
-90 Cases
-726 Assertions
+100 Cases
+777 Assertions
 0 Failed
 
 
@@ -345,13 +795,16 @@ Integration Test:
 44 Cases
 348 Assertions
 0 Failed
-
-
-Total:
-
-134 Cases
-1074 Assertions
-0 Failed
 ```
 
-当前已验证`make strict`以及`make asan`通过.
+不同平台由于可选硬件接口存在差异,Assertion数量可能略有变化.
+
+当前已验证:
+
+```
+make check
+make strict
+make asan
+ARM Runtime Stability
+Orange Pi真实TTY Job Control
+```

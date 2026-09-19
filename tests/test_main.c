@@ -21,6 +21,7 @@ void test_parser_duplicate_redirect_append(void);
 void test_parser_duplicate_redirect_in(void);
 void test_parser_redirect_per_pipeline_command(void);
 void test_shell_context_init(void);
+void test_shell_context_config_env(void);
 void test_shell_context_destroy(void);
 void test_shell_context_destroy_reaps_jobs(void);
 void test_builtin_count(void);
@@ -82,6 +83,8 @@ void test_job_exit_status_last_process(void);
 void test_job_wait_foreground_pipeline_status(void);
 void test_job_wait_foreground_whole_group_stop(void);
 void test_parser_token_too_long(void);
+void test_hardware_info_collect_null(void);
+void test_hardware_info_collect(void);
 void test_parser_too_many_tokens(void);
 void test_parser_background_must_be_last(void);
 void test_dispatcher_builtin_pipeline_rejected(void);
@@ -91,6 +94,15 @@ void test_config_directory_load_failure(void);
 void test_system_info_collect_overwrite(void);
 void test_job_shutdown_same_group_descendant(void);
 void test_event_shutdown_signal_safety(void);
+void test_device_tree_collect_null(void);
+void test_device_tree_collect(void);
+void test_sysfs_io_invalid(void);
+void test_sysfs_io_text(void);
+void test_sysfs_io_number(void);
+void test_led_control_invalid_name(void);
+void test_led_control_invalid_trigger(void);
+
+
 
 int main(void)
 {
@@ -160,6 +172,7 @@ int main(void)
             {"execute_command_done_job_not_counted", test_execute_command_done_job_not_counted},
             {"command_init", test_command_init},
             {"shell_context_init", test_shell_context_init},
+            {"shell_context_config_env", test_shell_context_config_env},
             {"shell_context_destroy", test_shell_context_destroy},
             {"shell_context_destroy_reaps_jobs", test_shell_context_destroy_reaps_jobs},
             {"system_info_collect_null", test_system_info_collect_null},
@@ -185,8 +198,17 @@ int main(void)
             {"config_directory_load_failure", test_config_directory_load_failure},
             {"job_shutdown_same_group_descendant", test_job_shutdown_same_group_descendant},
             {"event_shutdown_signal_safety", test_event_shutdown_signal_safety},
+            {"device_tree_collect_null", test_device_tree_collect_null},
+            {"device_tree_collect", test_device_tree_collect},
             {"system_info_collect_overwrite", test_system_info_collect_overwrite},
-        };
+            {"hardware_info_collect_null", test_hardware_info_collect_null},
+            {"hardware_info_collect", test_hardware_info_collect},
+            {"sysfs_io_invalid", test_sysfs_io_invalid},
+            {"sysfs_io_text", test_sysfs_io_text},
+            {"sysfs_io_number", test_sysfs_io_number},
+            {"led_control_invalid_name", test_led_control_invalid_name},
+            {"led_control_invalid_trigger", test_led_control_invalid_trigger},
+    };
     printf("======= MiniShell Test =======\n");
     test_run(tests, sizeof(tests) / sizeof(tests[0]));
     test_report();
