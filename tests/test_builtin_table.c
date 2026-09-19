@@ -5,7 +5,7 @@
 void test_builtin_count(void)
 {
     size_t count = builtin_count();
-    TEST_ASSERT_EQ(count, 10);
+    TEST_ASSERT_EQ(count, 11);
 }
 
 void test_builtin_lookup_known(void)
@@ -24,6 +24,13 @@ void test_builtin_lookup_known(void)
     TEST_ASSERT_NOT_NULL(entry);
     TEST_ASSERT_STR_EQ(entry->name, "sysinfo");
     TEST_ASSERT(entry->handler == builtin_sysinfo);
+    entry = builtin_lookup("dtinfo");
+    TEST_ASSERT_NOT_NULL(entry);
+    if (entry)
+    {
+        TEST_ASSERT_STR_EQ(entry->name, "dtinfo");
+        TEST_ASSERT(entry->handler == builtin_dtinfo);
+    }
 }
 
 void test_builtin_lookup_unknown(void)

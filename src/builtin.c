@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "device_tree.h"
 
 int builtin_cd(Command *cmd, struct ShellContext *ctx)
 {
@@ -233,6 +234,25 @@ int builtin_reload(Command *cmd, struct ShellContext *ctx)
         log_setlevel(LOG_INFO);
 
     printf("config reloaded\n");
+
+    return MiniShell_OK;
+}
+
+
+int builtin_dtinfo(Command *cmd, struct ShellContext *ctx)
+{
+    (void)cmd;
+    (void)ctx;
+
+    DeviceTreeInfo info;
+    int ret = device_tree_collect(&info);
+
+    if (ret != MiniShell_OK)
+    {
+        return ret;
+    }
+
+    device_tree_print(&info);
 
     return MiniShell_OK;
 }

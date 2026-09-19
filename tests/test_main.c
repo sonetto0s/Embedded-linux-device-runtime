@@ -92,6 +92,10 @@ void test_config_directory_load_failure(void);
 void test_system_info_collect_overwrite(void);
 void test_job_shutdown_same_group_descendant(void);
 void test_event_shutdown_signal_safety(void);
+void test_device_tree_collect_null(void);
+void test_device_tree_collect(void);
+
+
 
 int main(void)
 {
@@ -187,6 +191,8 @@ int main(void)
             {"config_directory_load_failure", test_config_directory_load_failure},
             {"job_shutdown_same_group_descendant", test_job_shutdown_same_group_descendant},
             {"event_shutdown_signal_safety", test_event_shutdown_signal_safety},
+            {"device_tree_collect_null", test_device_tree_collect_null},
+            {"device_tree_collect", test_device_tree_collect},
             {"system_info_collect_overwrite", test_system_info_collect_overwrite},
     };
     printf("======= MiniShell Test =======\n");

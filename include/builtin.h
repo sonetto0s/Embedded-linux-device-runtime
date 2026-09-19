@@ -15,4 +15,5 @@ int builtin_sysinfo(Command *cmd, struct ShellContext *ctx);
 int builtin_fg(Command *cmd, struct ShellContext *ctx);
 int builtin_bg(Command *cmd, struct ShellContext *ctx);
 int builtin_reload(Command *cmd, struct ShellContext *ctx);
+int builtin_dtinfo(Command *cmd, struct ShellContext *ctx);
 #endif

@@ -73,6 +73,7 @@ APP_SRC := \
 	$(SRC_DIR)/event.c \
 	$(SRC_DIR)/builtin_table.c \
 	$(SRC_DIR)/system_info.c \
+	$(SRC_DIR)/device_tree.c \
 	$(SRC_DIR)/terminal.c \
 	$(COMMON_DIR)/utils.c \
 	$(COMMON_DIR)/log.c \
@@ -89,6 +90,7 @@ TEST_SRC := \
 	$(TEST_DIR)/test_shell_context.c \
 	$(TEST_DIR)/test_builtin_table.c \
 	$(TEST_DIR)/test_system_info.c \
+	$(TEST_DIR)/test_device_tree.c \
 	$(TEST_DIR)/test_dispatcher.c \
 	$(TEST_DIR)/test_executor.c \
 	$(TEST_DIR)/test_job.c \
@@ -101,6 +103,7 @@ TEST_SRC := \
 	$(SRC_DIR)/builtin.c \
 	$(SRC_DIR)/builtin_table.c \
 	$(SRC_DIR)/command.c \
+	$(SRC_DIR)/device_tree.c \
 	$(SRC_DIR)/sig.c \
 	$(SRC_DIR)/shell_context.c \
 	$(SRC_DIR)/job.c \

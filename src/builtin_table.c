@@ -11,6 +11,7 @@ static BuiltinEntry builtin_table[] = {
     {"help", builtin_help},
     {"status", builtin_status},
     {"sysinfo",builtin_sysinfo},
+    {"dtinfo", builtin_dtinfo},
     {"fg", builtin_fg},
     {"bg", builtin_bg},
     {"reload", builtin_reload},
