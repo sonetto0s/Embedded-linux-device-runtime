@@ -74,6 +74,8 @@ APP_SRC := \
 	$(SRC_DIR)/builtin_table.c \
 	$(SRC_DIR)/system_info.c \
 	$(SRC_DIR)/hardware_info.c \
+	$(SRC_DIR)/sysfs_io.c \
+	$(SRC_DIR)/led_control.c \
 	$(SRC_DIR)/device_tree.c \
 	$(SRC_DIR)/terminal.c \
 	$(COMMON_DIR)/utils.c \
@@ -95,6 +97,8 @@ TEST_SRC := \
 	$(TEST_DIR)/test_dispatcher.c \
 	$(TEST_DIR)/test_executor.c \
 	$(TEST_DIR)/test_hardware_info.c \
+	$(TEST_DIR)/test_sysfs_io.c \
+	$(TEST_DIR)/test_led_control.c \
 	$(TEST_DIR)/test_job.c \
 	$(TEST_DIR)/test_job_control.c \
 	$(TEST_DIR)/test_command.c \
@@ -111,6 +115,8 @@ TEST_SRC := \
 	$(SRC_DIR)/job.c \
 	$(SRC_DIR)/event.c \
 	$(SRC_DIR)/hardware_info.c \
+	$(SRC_DIR)/sysfs_io.c \
+	$(SRC_DIR)/led_control.c \
 	$(SRC_DIR)/system_info.c \
 	$(SRC_DIR)/terminal.c \
 	$(COMMON_DIR)/utils.c \

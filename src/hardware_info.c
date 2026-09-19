@@ -1,6 +1,7 @@
 #include "hardware_info.h"
 #include "error.h"
 #include "log.h"
+#include "sysfs_io.h"
 #include <dirent.h>
 #include <stdio.h>
 #include <string.h>
@@ -35,88 +36,11 @@ static int build_path(char *buffer, size_t size, const char *base, const char *e
     return 0;
 }
 
-static int read_text_file(const char *path, char *buffer, size_t size)
-{
-    if (!path || !buffer || size == 0)
-    {
-        return -1;
-    }
-
-    FILE *fp = fopen(path, "r");
-
-    if (!fp)
-    {
-        return -1;
-    }
-
-    if (!fgets(buffer, size, fp))
-    {
-        fclose(fp);
-        return -1;
-    }
-
-    fclose(fp);
-
-    buffer[strcspn(buffer, "\r\n")] = '\0';
-
-    return 0;
-}
-
-static int read_unsigned_long_file(const char *path, unsigned long *value)
-{
-    if (!path || !value)
-    {
-        return -1;
-    }
-
-    FILE *fp = fopen(path, "r");
-
-    if (!fp)
-    {
-        return -1;
-    }
-
-    if (fscanf(fp, "%lu", value) != 1)
-    {
-        fclose(fp);
-        return -1;
-    }
-
-    fclose(fp);
-
-    return 0;
-}
-
-static int read_long_file(const char *path, long *value)
-{
-    if (!path || !value)
-    {
-        return -1;
-    }
-
-    FILE *fp = fopen(path, "r");
-
-    if (!fp)
-    {
-        return -1;
-    }
-
-    if (fscanf(fp, "%ld", value) != 1)
-    {
-        fclose(fp);
-        return -1;
-    }
-
-    fclose(fp);
-
-    return 0;
-}
-
 static int read_led_trigger(const char *path, char *buffer, size_t size)
 {
     char line[2048];
 
-    if (read_text_file(path, line, sizeof(line)) < 0)
+    if (sysfs_read_text(path, line, sizeof(line)) < 0)
     {
         return -1;
     }
@@ -182,7 +106,7 @@ static void collect_thermal(HardwareInfo *info)
             continue;
         }
 
-        if (read_text_file(path, zone->type, sizeof(zone->type)) < 0)
+        if (sysfs_read_text(path, zone->type, sizeof(zone->type)) < 0)
         {
             continue;
         }
@@ -191,7 +115,7 @@ static void collect_thermal(HardwareInfo *info)
         {
             long temperature;
 
-            if (read_long_file(path, &temperature) == 0)
+            if (sysfs_read_long(path, &temperature) == 0)
             {
                 zone->temperature = (double)temperature / 1000.0;
                 zone->has_temperature = 1;
@@ -235,22 +159,22 @@ static void collect_cpu_frequency(HardwareInfo *info)
 
         if (build_path(path, sizeof(path), base, entry->d_name, "affected_cpus") == 0)
         {
-            read_text_file(path, policy->affected_cpus, sizeof(policy->affected_cpus));
+            sysfs_read_text(path, policy->affected_cpus, sizeof(policy->affected_cpus));
         }
 
         if (build_path(path, sizeof(path), base, entry->d_name, "scaling_driver") == 0)
         {
-            read_text_file(path, policy->driver, sizeof(policy->driver));
+            sysfs_read_text(path, policy->driver, sizeof(policy->driver));
         }
 
         if (build_path(path, sizeof(path), base, entry->d_name, "scaling_governor") == 0)
         {
-            read_text_file(path, policy->governor, sizeof(policy->governor));
+            sysfs_read_text(path, policy->governor, sizeof(policy->governor));
         }
 
         if (build_path(path, sizeof(path), base, entry->d_name, "scaling_cur_freq") == 0)
         {
-            if (read_unsigned_long_file(path, &policy->current_khz) == 0)
+            if (sysfs_read_ulong(path, &policy->current_khz) == 0)
             {
                 policy->has_current = 1;
             }
@@ -258,7 +182,7 @@ static void collect_cpu_frequency(HardwareInfo *info)
 
         if (build_path(path, sizeof(path), base, entry->d_name, "scaling_min_freq") == 0)
         {
-            if (read_unsigned_long_file(path, &policy->scaling_min_khz) == 0)
+            if (sysfs_read_ulong(path, &policy->scaling_min_khz) == 0)
             {
                 policy->has_scaling_min = 1;
             }
@@ -266,7 +190,7 @@ static void collect_cpu_frequency(HardwareInfo *info)
 
         if (build_path(path, sizeof(path), base, entry->d_name, "scaling_max_freq") == 0)
         {
-            if (read_unsigned_long_file(path, &policy->scaling_max_khz) == 0)
+            if (sysfs_read_ulong(path, &policy->scaling_max_khz) == 0)
             {
                 policy->has_scaling_max = 1;
             }
@@ -274,7 +198,7 @@ static void collect_cpu_frequency(HardwareInfo *info)
 
         if (build_path(path, sizeof(path), base, entry->d_name, "cpuinfo_min_freq") == 0)
         {
-            if (read_unsigned_long_file(path, &policy->hardware_min_khz) == 0)
+            if (sysfs_read_ulong(path, &policy->hardware_min_khz) == 0)
             {
                 policy->has_hardware_min = 1;
             }
@@ -282,7 +206,7 @@ static void collect_cpu_frequency(HardwareInfo *info)
 
         if (build_path(path, sizeof(path), base, entry->d_name, "cpuinfo_max_freq") == 0)
         {
-            if (read_unsigned_long_file(path, &policy->hardware_max_khz) == 0)
+            if (sysfs_read_ulong(path, &policy->hardware_max_khz) == 0)
             {
                 policy->has_hardware_max = 1;
             }
@@ -325,17 +249,17 @@ static void collect_network(HardwareInfo *info)
 
         if (build_path(path, sizeof(path), base, entry->d_name, "operstate") == 0)
         {
-            read_text_file(path, network->state, sizeof(network->state));
+            sysfs_read_text(path, network->state, sizeof(network->state));
         }
 
         if (build_path(path, sizeof(path), base, entry->d_name, "address") == 0)
         {
-            read_text_file(path, network->address, sizeof(network->address));
+            sysfs_read_text(path, network->address, sizeof(network->address));
         }
 
         if (build_path(path, sizeof(path), base, entry->d_name, "mtu") == 0)
         {
-            if (read_unsigned_long_file(path, &network->mtu) == 0)
+            if (sysfs_read_ulong(path, &network->mtu) == 0)
             {
                 network->has_mtu = 1;
             }
@@ -378,7 +302,7 @@ static void collect_leds(HardwareInfo *info)
 
         if (build_path(path, sizeof(path), base, entry->d_name, "brightness") == 0)
         {
-            if (read_long_file(path, &led->brightness) == 0)
+            if (sysfs_read_long(path, &led->brightness) == 0)
             {
                 led->has_brightness = 1;
             }
@@ -386,7 +310,7 @@ static void collect_leds(HardwareInfo *info)
 
         if (build_path(path, sizeof(path), base, entry->d_name, "max_brightness") == 0)
         {
-            if (read_long_file(path, &led->max_brightness) == 0)
+            if (sysfs_read_long(path, &led->max_brightness) == 0)
             {
                 led->has_max_brightness = 1;
             }
@@ -568,3 +492,6 @@ void hardware_info_print(const HardwareInfo *info)
     print_leds(info);
     printf("\n");
 }
+
+
+

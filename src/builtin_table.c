@@ -13,6 +13,7 @@ static BuiltinEntry builtin_table[] = {
     {"sysinfo", builtin_sysinfo},
     {"dtinfo", builtin_dtinfo},
     {"hwinfo", builtin_hwinfo},
+    {"led", builtin_led},
     {"fg", builtin_fg},
     {"bg", builtin_bg},
     {"reload", builtin_reload},
@@ -25,9 +26,9 @@ BuiltinEntry *builtin_lookup(const char *name)
         if (strcmp(name, builtin_table[i].name) == 0)
             return &builtin_table[i];
     }
+
     return NULL;
 }
-
 
 BuiltinEntry *builtin_get(size_t index)
 {
@@ -41,3 +42,21 @@ size_t builtin_count(void)
 {
     return sizeof(builtin_table) / sizeof(builtin_table[0]);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

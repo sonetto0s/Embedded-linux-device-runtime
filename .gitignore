@@ -56,3 +56,4 @@ shell
 *.dwo
 /build/
 /dist/
+/Testing/

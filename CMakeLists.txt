@@ -47,6 +47,8 @@ set(MINISHELL_CORE_SOURCES
     src/system_info.c
     src/device_tree.c
     src/hardware_info.c
+    src/sysfs_io.c
+    src/led_control.c
     src/terminal.c
     common/utils.c
     common/log.c
@@ -101,6 +103,8 @@ if(BUILD_TESTING)
         tests/test_system_info.c
         tests/test_device_tree.c
         tests/test_hardware_info.c
+        tests/test_sysfs_io.c
+        tests/test_led_control.c
         tests/test_dispatcher.c
         tests/test_executor.c
         tests/test_job.c
