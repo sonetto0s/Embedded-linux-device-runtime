@@ -234,6 +234,11 @@ static int write_control(int fd, unsigned char control)
 
 static int wait_for_pid(pid_t pid, int *status, int timeout_ms)
 {
+    const char *asan_options = getenv("ASAN_OPTIONS");
+
+    if (asan_options && *asan_options && timeout_ms < 15000)
+        timeout_ms = 15000;
+
     long long start = monotonic_ms();
 
     if (start < 0)
@@ -241,16 +246,15 @@ static int wait_for_pid(pid_t pid, int *status, int timeout_ms)
 
     long long deadline = start + timeout_ms;
 
-    while (1) {
-        pid_t ret =
-            waitpid(pid,
-                    status,
-                    WNOHANG);
+    while (1)
+    {
+        pid_t ret = waitpid(pid, status, WNOHANG);
 
         if (ret == pid)
             return 0;
 
-        if (ret < 0) {
+        if (ret < 0)
+        {
             if (errno == EINTR)
                 continue;
 
@@ -264,17 +268,15 @@ static int wait_for_pid(pid_t pid, int *status, int timeout_ms)
 
         long long remaining = deadline - now;
 
-        long sleep_ms =
-            remaining > 20
-                ? 20
-                : (long)remaining;
+        long sleep_ms = remaining > 20 ? 20 : (long)remaining;
 
         struct timespec delay = {
             .tv_sec = sleep_ms / 1000,
             .tv_nsec = (sleep_ms % 1000) * 1000000L
         };
 
-        while (nanosleep(&delay, &delay) < 0) {
+        while (nanosleep(&delay, &delay) < 0)
+        {
             if (errno != EINTR)
                 return -1;
         }
