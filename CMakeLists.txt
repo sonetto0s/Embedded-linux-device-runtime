@@ -193,4 +193,15 @@ if(BUILD_TESTING)
 
 endif()
 
+install(
+    TARGETS minishell
+    RUNTIME DESTINATION bin
+)
+
+install(
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/config/config.conf"
+    DESTINATION config
+)
+
+
 

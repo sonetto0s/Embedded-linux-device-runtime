@@ -25,6 +25,7 @@ STRICT_CFLAGS := \
 
 CFLAGS ?= $(COMMON_CFLAGS) -g -O0
 CPPFLAGS ?=
+
 CPPFLAGS_COMMON := \
 	-D_POSIX_C_SOURCE=200809L
 
@@ -54,6 +55,12 @@ CONFIG_DIR := config
 BUILD_DIR ?= build/default
 DEPLOY_DIR ?= dist/$(ARCH)
 
+PREFIX ?= /opt/minishell
+DESTDIR ?=
+
+INSTALL_BINDIR := $(DESTDIR)$(PREFIX)/bin
+INSTALL_CONFIGDIR := $(DESTDIR)$(PREFIX)/config
+
 TARGET := $(BUILD_DIR)/minishell
 RUN_TARGET := shell
 TEST_TARGET := $(BUILD_DIR)/minishell_tests
@@ -73,10 +80,10 @@ APP_SRC := \
 	$(SRC_DIR)/event.c \
 	$(SRC_DIR)/builtin_table.c \
 	$(SRC_DIR)/system_info.c \
+	$(SRC_DIR)/device_tree.c \
 	$(SRC_DIR)/hardware_info.c \
 	$(SRC_DIR)/sysfs_io.c \
 	$(SRC_DIR)/led_control.c \
-	$(SRC_DIR)/device_tree.c \
 	$(SRC_DIR)/terminal.c \
 	$(COMMON_DIR)/utils.c \
 	$(COMMON_DIR)/log.c \
@@ -94,11 +101,11 @@ TEST_SRC := \
 	$(TEST_DIR)/test_builtin_table.c \
 	$(TEST_DIR)/test_system_info.c \
 	$(TEST_DIR)/test_device_tree.c \
-	$(TEST_DIR)/test_dispatcher.c \
-	$(TEST_DIR)/test_executor.c \
 	$(TEST_DIR)/test_hardware_info.c \
 	$(TEST_DIR)/test_sysfs_io.c \
 	$(TEST_DIR)/test_led_control.c \
+	$(TEST_DIR)/test_dispatcher.c \
+	$(TEST_DIR)/test_executor.c \
 	$(TEST_DIR)/test_job.c \
 	$(TEST_DIR)/test_job_control.c \
 	$(TEST_DIR)/test_command.c \
@@ -167,6 +174,8 @@ DEPS := \
 	package \
 	package-files \
 	arm64-package \
+	install \
+	uninstall \
 	print-config \
 	test \
 	integration \
@@ -221,10 +230,11 @@ package:
 
 package-files: $(TARGET)
 	@echo "  PACKAGE $(DEPLOY_DIR)"
-	@rm -rf $(DEPLOY_DIR)
-	@mkdir -p $(DEPLOY_DIR)/bin $(DEPLOY_DIR)/config
-	@cp $(TARGET) $(DEPLOY_DIR)/bin/minishell
-	@cp $(CONFIG_DIR)/config.conf $(DEPLOY_DIR)/config/config.conf
+	@rm -rf "$(DEPLOY_DIR)"
+	@install -d "$(DEPLOY_DIR)/bin"
+	@install -d "$(DEPLOY_DIR)/config"
+	@install -m 0755 "$(TARGET)" "$(DEPLOY_DIR)/bin/minishell"
+	@install -m 0644 "$(CONFIG_DIR)/config.conf" "$(DEPLOY_DIR)/config/config.conf"
 
 arm64-package:
 	@command -v $(ARM64_CC) >/dev/null 2>&1 || { \
@@ -242,6 +252,29 @@ arm64-package:
 		CFLAGS='$(COMMON_CFLAGS) -O2 -DNDEBUG' \
 		package-files
 
+install: $(TARGET)
+	@echo "  INSTALL MiniShell"
+	@echo "  Prefix : $(PREFIX)"
+	@echo "  Root   : $(DESTDIR)"
+	@install -d "$(INSTALL_BINDIR)"
+	@install -d "$(INSTALL_CONFIGDIR)"
+	@install -m 0755 "$(TARGET)" "$(INSTALL_BINDIR)/minishell"
+	@install -m 0644 "$(CONFIG_DIR)/config.conf" "$(INSTALL_CONFIGDIR)/config.conf"
+	@echo "  Installed:"
+	@echo "    $(INSTALL_BINDIR)/minishell"
+	@echo "    $(INSTALL_CONFIGDIR)/config.conf"
+
+uninstall:
+	@echo "  UNINSTALL MiniShell"
+	@echo "  Prefix : $(PREFIX)"
+	@echo "  Root   : $(DESTDIR)"
+	@rm -f "$(INSTALL_BINDIR)/minishell"
+	@rm -f "$(INSTALL_CONFIGDIR)/config.conf"
+	@rmdir "$(INSTALL_BINDIR)" 2>/dev/null || true
+	@rmdir "$(INSTALL_CONFIGDIR)" 2>/dev/null || true
+	@rmdir "$(DESTDIR)$(PREFIX)" 2>/dev/null || true
+	@echo "  MiniShell removed"
+
 print-config:
 	@echo "ARCH          = $(ARCH)"
 	@echo "CROSS_COMPILE = $(CROSS_COMPILE)"
@@ -249,6 +282,8 @@ print-config:
 	@echo "BUILD_DIR     = $(BUILD_DIR)"
 	@echo "TARGET        = $(TARGET)"
 	@echo "DEPLOY_DIR    = $(DEPLOY_DIR)"
+	@echo "PREFIX        = $(PREFIX)"
+	@echo "DESTDIR       = $(DESTDIR)"
 
 $(TARGET): $(APP_OBJ)
 	@mkdir -p $(dir $@)
@@ -384,7 +419,13 @@ help:
 	@echo "Deployment:"
 	@echo "  make package         Create optimized native deployment package"
 	@echo "  make arm64-package   Create optimized ARM64 deployment package"
-	@echo "  make print-config    Show current build configuration"
+	@echo "  make install         Install MiniShell under PREFIX"
+	@echo "  make uninstall       Remove installed MiniShell files"
+	@echo "  make print-config    Show current build/deployment configuration"
+	@echo ""
+	@echo "Install variables:"
+	@echo "  PREFIX=/opt/minishell"
+	@echo "  DESTDIR=/tmp/rootfs"
 	@echo ""
 	@echo "Tests:"
 	@echo "  make test            Build and run unit tests"
