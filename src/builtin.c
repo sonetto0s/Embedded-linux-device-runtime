@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "runtime_monitor.h"
 
 int builtin_cd(Command *cmd, struct ShellContext *ctx)
 {
@@ -495,4 +496,19 @@ int builtin_led(Command *cmd, struct ShellContext *ctx)
 }
 
 
+int builtin_monitor(Command *cmd, struct ShellContext *ctx)
+{
+    (void)cmd;
+    (void)ctx;
 
+    RuntimeMonitor monitor;
+
+    int ret = runtime_monitor_collect(&monitor);
+
+    if (ret != 0)
+        return MiniShell_ERR_UNKNOWN;
+
+    runtime_monitor_print(&monitor);
+
+    return MiniShell_OK;
+}

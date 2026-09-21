@@ -45,6 +45,7 @@ set(MINISHELL_CORE_SOURCES
     src/event.c
     src/builtin_table.c
     src/system_info.c
+    src/runtime_monitor.c
     src/device_tree.c
     src/hardware_info.c
     src/sysfs_io.c

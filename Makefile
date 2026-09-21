@@ -80,6 +80,7 @@ APP_SRC := \
 	$(SRC_DIR)/event.c \
 	$(SRC_DIR)/builtin_table.c \
 	$(SRC_DIR)/system_info.c \
+	$(SRC_DIR)/runtime_monitor.c \
 	$(SRC_DIR)/device_tree.c \
 	$(SRC_DIR)/hardware_info.c \
 	$(SRC_DIR)/sysfs_io.c \
@@ -125,6 +126,7 @@ TEST_SRC := \
 	$(SRC_DIR)/sysfs_io.c \
 	$(SRC_DIR)/led_control.c \
 	$(SRC_DIR)/system_info.c \
+	$(SRC_DIR)/runtime_monitor.c \
 	$(SRC_DIR)/terminal.c \
 	$(COMMON_DIR)/utils.c \
 	$(COMMON_DIR)/log.c \
