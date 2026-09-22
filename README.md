@@ -1,9 +1,9 @@
-# myminishell
+# Embedded Linux Device Runtime
 
 ## 项目简介
 
 👋👋
-这是一个基于Linux用户态实现的MiniShell,主要用来实现命令解析、进程控制、管道、重定向、Job Control、Signal/Event等功能,以此深入学习Linux系统编程相关机制🙃
+这是一个基于Linux用户态实现的嵌入式linux项目,主要用来实现命令解析、进程控制、管道、重定向、Job Control、Signal/Event等功能,以此深入学习Linux系统编程相关机制🙃
 项目目前已逐步增加模块化、配置、日志、错误处理、Job管理、自动化测试、ARM Linux运行、硬件运行时信息读取以及Linux Runtime监控等工程化能力.
 目前已经可以直接运行在Orange Pi 5 Plus ARM Linux环境,并继续向嵌入式Linux设备管理终端方向扩展.
 
