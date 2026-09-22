@@ -4,7 +4,7 @@
 
 ## 当前部署结构
 
-V1.6开始增加正式部署流程,默认安装位置为:
+当前正式部署流程默认安装位置为:
 
 ```
 /opt/minishell/
@@ -225,7 +225,7 @@ config/
 
 ## CMake安装
 
-V1.6同时保持Makefile与CMake部署方式一致.
+当前保持Makefile与CMake部署方式一致.
 
 首先配置以及编译:
 
@@ -307,7 +307,7 @@ cd /tmp
 
 ## 硬件权限
 
-V1.6已经加入Device Tree、Hardware Info以及sysfs硬件访问能力.
+当前已经包含Device Tree、Hardware Info、Runtime Monitor以及sysfs硬件访问能力.
 
 只读接口通常可以由普通用户直接读取.
 
@@ -372,7 +372,7 @@ cd /tmp
 ```
 
 
-## V1.6当前部署能力
+## 当前部署能力
 
 ```
 Make原生编译
@@ -388,4 +388,3 @@ CMake install
 运行目录无关配置查找
 Orange Pi 5 Plus板端部署
 ```
-

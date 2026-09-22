@@ -16,9 +16,11 @@
 
 - executor.c: 负责外部命令执行,实现fork、execvp、Process Group、startup gate、Pipeline、重定向、失败rollback以及Foreground Job等待
 
-- builtin.c: 负责Shell内部命令实现,包括cd、pwd、exit、help、jobs、status、sysinfo、dtinfo、hwinfo、led、fg、bg、reload等指令
+- builtin.c: 负责Shell内部命令实现,包括cd、pwd、exit、help、jobs、status、sysinfo、monitor、psinfo、dtinfo、hwinfo、led、fg、bg、reload等指令
 
 - builtin_table.c: 负责Builtin指令集中注册以及查询,避免dispatcher内部大量if/else判断
+
+- commands/cmd_runtime.c: 负责Runtime相关命令参数处理以及Console输出,当前实现monitor以及psinfo
 
 - sig.c: 负责Signal初始化、事件记录、Shell退出时Signal关闭以及Child执行前默认Signal恢复
 
@@ -37,6 +39,16 @@
 - config.c: 负责配置初始化、配置解析、事务式配置加载以及reload支持
 
 - system_info.c: 负责设备以及系统基础状态识别,读取Board、Kernel、CPU、Memory、Architecture、Uptime以及SoC Temperature等信息
+
+- runtime_monitor.c: 负责读取Linux基础Runtime状态,包括CPU Usage、Memory Usage、Load Average、Process Count以及Uptime
+
+- process_monitor.c: 负责读取Linux Process状态,支持单PID查询以及/proc Process列表扫描
+
+- runtime_snapshot.c: 负责组合System、Thermal以及Network Runtime信息,并记录各Runtime Source状态
+
+- network_monitor.c: 负责读取/sys/class/net中的Network Interface运行状态以及RX/TX Bytes
+
+- thermal_monitor.c: 负责读取/sys/class/thermal中的Thermal Zone状态以及温度
 
 - device_tree.c: 负责读取Linux Device Tree运行时信息,包括Model、Compatible以及Boot Args
 
@@ -117,6 +129,70 @@ next
 prompts
 max_job
 debug
+```
+
+- RuntimeMonitor: 保存Linux基础运行状态
+
+```
+cpu_usage
+memory_usage
+load_average[3]
+process_count
+uptime
+```
+
+- ProcessInfo: 保存单个Linux Process状态
+
+```
+pid
+name
+state
+rss_kb
+threads
+```
+
+- NetworkRuntimeInfo: 保存单个Network Interface Runtime状态
+
+```
+name
+state
+rx_bytes
+tx_bytes
+has_rx
+has_tx
+```
+
+- NetworkMonitor: 保存Network Interface集合
+
+```
+interfaces[]
+count
+```
+
+- ThermalRuntimeInfo: 保存单个Thermal Zone Runtime状态
+
+```
+name
+type
+temperature
+has_temperature
+```
+
+- ThermalMonitor: 保存Thermal Zone集合
+
+```
+zones[]
+count
+```
+
+- RuntimeSnapshot: 保存当前Runtime状态
+
+```
+RuntimeMonitor runtime
+ThermalMonitor thermal
+NetworkMonitor network
+available_sources
+failed_sources
 ```
 
 - SystemInfo: 保存当前系统以及板卡基础信息
@@ -374,7 +450,7 @@ max_job
 debug
 ```
 
-V1.6 Config查找顺序:
+当前Config查找顺序:
 
 ```
 MINISHELL_CONFIG
@@ -442,6 +518,135 @@ soc-thermal
 ```
 
 获取.
+
+## Runtime Command相关函数
+
+- cmd_monitor: 检查monitor参数,调用RuntimeSnapshot并输出当前Runtime状态
+
+- cmd_psinfo: 检查psinfo参数,调用ProcessMonitor并输出单个或者全部Process状态
+
+文件:
+
+```
+include/cmd_runtime.h
+src/commands/cmd_runtime.c
+```
+
+Command Layer只负责参数以及输出.
+
+底层Runtime模块不直接依赖ShellContext或者Builtin.
+
+## RuntimeMonitor相关函数
+
+- runtime_monitor_collect: 收集CPU、Memory、Load、Process Count以及Uptime
+
+读取:
+
+```
+/proc/stat
+/proc/meminfo
+/proc/loadavg
+/proc/uptime
+/proc
+```
+
+CPU Usage使用两次Snapshot差分计算.
+
+采样间隔:
+
+```
+100ms
+```
+
+## ProcessMonitor相关函数
+
+- process_monitor_get: 读取指定PID的ProcessInfo
+
+- process_monitor_collect: 扫描/proc并生成ProcessInfo Array
+
+- process_monitor_free: 释放ProcessInfo Array
+
+读取:
+
+```
+/proc/<pid>/status
+```
+
+字段:
+
+```
+Name
+State
+VmRSS
+Threads
+```
+
+扫描期间已经退出的PID直接跳过.
+
+最终列表按照PID升序排列.
+
+## RuntimeSnapshot相关函数
+
+- runtime_snapshot_collect: 收集System、Thermal以及Network Runtime状态
+
+- runtime_snapshot_hottest_thermal: 获取当前最高有效Temperature的Thermal Zone
+
+- runtime_snapshot_primary_network: 获取当前Primary Network Interface
+
+当前Source:
+
+```
+RUNTIME_SNAPSHOT_SOURCE_SYSTEM
+RUNTIME_SNAPSHOT_SOURCE_THERMAL
+RUNTIME_SNAPSHOT_SOURCE_NETWORK
+```
+
+System失败时Snapshot失败.
+
+Thermal或者Network失败时记录failed_sources,其他Runtime信息继续保留.
+
+## NetworkMonitor相关函数
+
+- network_monitor_collect: 从/sys/class/net读取Network Interface状态
+
+- network_monitor_collect_from: 从指定Directory读取Network Interface状态,主要用于Test Fixture
+
+- network_monitor_primary: 选择Primary Interface
+
+当前读取:
+
+```
+operstate
+statistics/rx_bytes
+statistics/tx_bytes
+```
+
+Primary选择:
+
+```
+非lo + up
+ |
+第一个非lo
+ |
+第一个Interface
+```
+
+## ThermalMonitor相关函数
+
+- thermal_monitor_collect: 从/sys/class/thermal读取Thermal Zone
+
+- thermal_monitor_collect_from: 从指定Directory读取Thermal Zone,主要用于Test Fixture
+
+- thermal_monitor_hottest: 选择当前最高有效Temperature
+
+当前读取:
+
+```
+thermal_zone*/type
+thermal_zone*/temp
+```
+
+不会固定依赖thermal_zone0.
 
 ## Device Tree相关函数
 
@@ -595,6 +800,8 @@ jobs
 help
 status
 sysinfo
+monitor
+psinfo
 dtinfo
 hwinfo
 led
@@ -603,7 +810,20 @@ bg
 reload
 ```
 
-其中V1.6新增:
+Runtime相关Builtin:
+
+```
+monitor
+psinfo
+```
+
+实际处理通过:
+
+```
+cmd_runtime
+```
+
+Hardware相关Builtin:
 
 ```
 dtinfo
@@ -633,7 +853,7 @@ led_control
 
 ## 外部命令退出状态
 
-当前V1.6采用:
+当前采用:
 
 ```
 0        成功
@@ -720,9 +940,19 @@ close
 
 - test_shell_context.c: 测试ShellContext初始化、稳定Config路径以及销毁
 
-- test_builtin_table.c: 测试Builtin Table查询以及V1.6新增Builtin
+- test_builtin_table.c: 测试Builtin Table查询以及当前Builtin注册
 
 - test_system_info.c: 测试System Info读取以及重复覆盖
+
+- test_runtime_monitor.c: 测试CPU、Memory、Load、Process Count以及Uptime
+
+- test_process_monitor.c: 测试单PID读取、/proc扫描以及PID排序
+
+- test_network_monitor.c: 使用/tmp Fixture测试Network Interface状态、RX/TX Bytes以及Primary Interface
+
+- test_thermal_monitor.c: 使用/tmp Fixture测试Thermal Zone读取以及最高温度选择
+
+- test_runtime_snapshot.c: 测试Runtime Source状态以及RuntimeSnapshot读取
 
 - test_device_tree.c: 测试Device Tree接口以及无Device Tree平台行为
 
@@ -748,7 +978,7 @@ close
 
 - test_shell_runner.c: 启动真实MiniShell,使用pipe/poll/monotonic deadline运行脚本并收集输出
 
-- test_shell_basic.c: 测试基础命令
+- test_shell_basic.c: 测试基础命令以及monitor/psinfo Runtime Command
 
 - test_shell_redirect.c: 测试输入/输出/追加重定向
 
@@ -764,7 +994,7 @@ close
 
 ## Stability测试文件
 
-- arm_runtime_stability.sh: 在Orange Pi中持续运行同一个MiniShell进程,进行Foreground、Pipeline、Redirect、reload、Background以及Hardware Info压力验证
+- arm_runtime_stability.sh: 在Orange Pi中持续运行同一个MiniShell进程,进行Foreground、Pipeline、Redirect、reload、Background、Hardware Info以及Runtime Manager压力验证
 
 主要检查:
 
@@ -776,35 +1006,25 @@ Shell存活
 Shell退出
 Config reload
 Hardware Runtime
+Runtime Monitor
+Process Monitor
 ```
 
 ## 当前测试状态
 
-Orange Pi 5 Plus最终验证:
+Orange Pi 5 Plus当前验证:
 
 ```
 Unit Test:
 
-100 Cases
-777 Assertions
+111 Cases
 0 Failed
 
 
 Integration Test:
 
-44 Cases
-348 Assertions
+46 Cases
 0 Failed
 ```
 
-不同平台由于可选硬件接口存在差异,Assertion数量可能略有变化.
-
-当前已验证:
-
-```
-make check
-make strict
-make asan
-ARM Runtime Stability
-Orange Pi真实TTY Job Control
-```
+ProcessMonitor测试会根据当前系统Process数量执行部分排序Assertion,因此Assertion数量可能随运行环境变化.
