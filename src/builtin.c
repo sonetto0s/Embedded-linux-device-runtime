@@ -12,8 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "runtime_monitor.h"
-#include "process_manager.h"
 #include "cmd_runtime.h"
 
 int builtin_cd(Command *cmd, struct ShellContext *ctx)

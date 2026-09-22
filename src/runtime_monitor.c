@@ -8,6 +8,8 @@
 #include <string.h>
 #include <time.h>
 
+#define CPU_SAMPLE_INTERVAL_NS 100000000L
+
 typedef struct
 {
     unsigned long long total;
@@ -68,7 +70,7 @@ static int read_cpu_snapshot(CpuSnapshot *snapshot)
 
 static int wait_cpu_sample(void)
 {
-    struct timespec request = {0, 100000000L};
+    struct timespec request = {0, CPU_SAMPLE_INTERVAL_NS};
 
     while (nanosleep(&request, &request) < 0)
     {
@@ -305,39 +307,6 @@ int runtime_monitor_collect(RuntimeMonitor *monitor)
     return read_process_count(&monitor->process_count);
 }
 
-void runtime_monitor_print(const RuntimeMonitor *monitor)
-{
-    if (!monitor)
-    {
-        return;
-    }
-
-    unsigned long long total_seconds = (unsigned long long)monitor->uptime;
-    unsigned long long days = total_seconds / 86400ULL;
-    unsigned long long hours = (total_seconds % 86400ULL) / 3600ULL;
-    unsigned long long minutes = (total_seconds % 3600ULL) / 60ULL;
-    unsigned long long seconds = total_seconds % 60ULL;
-
-    printf("\n========== Runtime Monitor ==========\n");
-    printf("CPU Usage       : %.1f %%\n", monitor->cpu_usage);
-    printf("Memory Usage    : %.1f %%\n", monitor->memory_usage);
-    printf("Load Average    : %.2f %.2f %.2f\n",
-           monitor->load_average[0], monitor->load_average[1], monitor->load_average[2]);
-    printf("Process Count   : %u\n", monitor->process_count);
-
-    if (days > 0)
-    {
-        printf("Uptime          : %llud %02llu:%02llu:%02llu\n",
-               days, hours, minutes, seconds);
-    }
-    else
-    {
-        printf("Uptime          : %02llu:%02llu:%02llu\n",
-               hours, minutes, seconds);
-    }
-
-    printf("=====================================\n\n");
-}
 
 
 

@@ -1,8 +1,9 @@
-#include "process_manager.h"
+#include "process_monitor.h"
 
 #include "error.h"
 #include <ctype.h>
 #include <dirent.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,7 +50,7 @@ static void copy_status_text(char *dst, size_t dst_size, const char *src)
     dst[length] = '\0';
 }
 
-int process_manager_get(pid_t pid, ProcessInfo *info)
+int process_monitor_get(pid_t pid, ProcessInfo *info)
 {
     if (pid <= 0 || !info)
     {
@@ -143,7 +144,7 @@ static int process_info_compare(const void *left, const void *right)
     return 0;
 }
 
-int process_manager_collect(ProcessInfo **list, size_t *count)
+int process_monitor_collect(ProcessInfo **list, size_t *count)
 {
     if (!list || !count)
     {
@@ -178,17 +179,19 @@ int process_manager_collect(ProcessInfo **list, size_t *count)
             continue;
         }
 
+        errno = 0;
+
         char *end = NULL;
         long value = strtol(entry->d_name, &end, 10);
 
-        if (!end || *end != '\0' || value <= 0 || value > INT_MAX)
+        if (errno != 0 || !end || *end != '\0' || value <= 0 || value > INT_MAX)
         {
             continue;
         }
 
         ProcessInfo info;
 
-        if (process_manager_get((pid_t)value, &info) != MiniShell_OK)
+        if (process_monitor_get((pid_t)value, &info) != MiniShell_OK)
         {
             continue;
         }
@@ -235,51 +238,10 @@ int process_manager_collect(ProcessInfo **list, size_t *count)
     return MiniShell_OK;
 }
 
-void process_manager_print(const ProcessInfo *list, size_t count)
-{
-    if (!list || count == 0)
-    {
-        printf("no processes found\n");
-        return;
-    }
-
-    printf("\n========== Process Information ==========\n\n");
-    printf("%-8s %-24s %-7s %-12s %-8s\n",
-           "PID", "NAME", "STATE", "RSS(KB)", "THREADS");
-    printf("----------------------------------------------------------------\n");
-
-    for (size_t i = 0; i < count; i++)
-    {
-        printf("%-8ld %-24s %-7c %-12lu %-8u\n",
-               (long)list[i].pid, list[i].name, list[i].state,
-               list[i].rss_kb, list[i].threads);
-    }
-
-    printf("\nTotal: %zu processes\n", count);
-    printf("=========================================\n\n");
-}
-
-void process_manager_print_one(const ProcessInfo *info)
-{
-    if (!info)
-    {
-        return;
-    }
-
-    printf("\n========== Process Information ==========\n\n");
-    printf("PID             : %ld\n", (long)info->pid);
-    printf("Name            : %s\n", info->name);
-    printf("State           : %c\n", info->state);
-    printf("RSS             : %lu KB\n", info->rss_kb);
-    printf("Threads         : %u\n", info->threads);
-    printf("\n=========================================\n\n");
-}
-
-void process_manager_free(ProcessInfo *list)
+void process_monitor_free(ProcessInfo *list)
 {
     free(list);
 }
-
 
 
 

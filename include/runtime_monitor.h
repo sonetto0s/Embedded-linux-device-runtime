@@ -11,7 +11,6 @@ typedef struct
 } RuntimeMonitor;
 
 int runtime_monitor_collect(RuntimeMonitor *monitor);
-void runtime_monitor_print(const RuntimeMonitor *monitor);
 
 #endif
 

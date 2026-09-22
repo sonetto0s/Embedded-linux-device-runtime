@@ -48,7 +48,7 @@ set(MINISHELL_CORE_SOURCES
     src/system_info.c
     src/commands/cmd_runtime.c
     src/runtime_monitor.c
-    src/process_manager.c
+    src/process_monitor.c
     src/device_tree.c
     src/hardware_info.c
     src/sysfs_io.c
@@ -106,7 +106,7 @@ if(BUILD_TESTING)
         tests/test_builtin_table.c
         tests/test_system_info.c
         tests/test_runtime_monitor.c
-        tests/test_process_manager.c
+        tests/test_process_monitor.c
         tests/test_device_tree.c
         tests/test_hardware_info.c
         tests/test_sysfs_io.c

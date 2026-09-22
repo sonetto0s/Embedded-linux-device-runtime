@@ -41,9 +41,9 @@ void test_execute_command_max_job_limit(void);
 void test_execute_command_done_job_not_counted(void);
 void test_runtime_monitor_collect_null(void);
 void test_runtime_monitor_collect(void);
-void test_process_manager_invalid(void);
-void test_process_manager_current(void);
-void test_process_manager_collect(void);
+void test_process_monitor_invalid(void);
+void test_process_monitor_current(void);
+void test_process_monitor_collect(void);
 void test_system_info_collect_null(void);
 void test_system_info_collect(void);
 void test_system_info_fields(void);
@@ -180,9 +180,9 @@ int main(void)
         {"shell_context_destroy_reaps_jobs", test_shell_context_destroy_reaps_jobs},
         {"runtime_monitor_collect_null", test_runtime_monitor_collect_null},
         {"runtime_monitor_collect", test_runtime_monitor_collect},
-        {"process_manager_invalid", test_process_manager_invalid},
-        {"process_manager_current", test_process_manager_current},
-        {"process_manager_collect", test_process_manager_collect},
+        {"process_monitor_invalid", test_process_monitor_invalid},
+        {"process_monitor_current", test_process_monitor_current},
+        {"process_monitor_collect", test_process_monitor_collect},
         {"system_info_collect_null", test_system_info_collect_null},
         {"system_info_collect", test_system_info_collect},
         {"system_info_fields", test_system_info_fields},
