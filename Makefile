@@ -80,10 +80,12 @@ APP_SRC := \
 	$(SRC_DIR)/event.c \
 	$(SRC_DIR)/builtin_table.c \
 	$(SRC_DIR)/system_info.c \
+	$(SRC_DIR)/commands/cmd_runtime.c \
 	$(SRC_DIR)/runtime_monitor.c \
 	$(SRC_DIR)/device_tree.c \
 	$(SRC_DIR)/hardware_info.c \
 	$(SRC_DIR)/sysfs_io.c \
+	$(SRC_DIR)/process_manager.c \
 	$(SRC_DIR)/led_control.c \
 	$(SRC_DIR)/terminal.c \
 	$(COMMON_DIR)/utils.c \
@@ -101,6 +103,8 @@ TEST_SRC := \
 	$(TEST_DIR)/test_shell_context.c \
 	$(TEST_DIR)/test_builtin_table.c \
 	$(TEST_DIR)/test_system_info.c \
+	$(TEST_DIR)/test_runtime_monitor.c \
+	$(TEST_DIR)/test_process_manager.c \
 	$(TEST_DIR)/test_device_tree.c \
 	$(TEST_DIR)/test_hardware_info.c \
 	$(TEST_DIR)/test_sysfs_io.c \
@@ -126,7 +130,9 @@ TEST_SRC := \
 	$(SRC_DIR)/sysfs_io.c \
 	$(SRC_DIR)/led_control.c \
 	$(SRC_DIR)/system_info.c \
+	$(SRC_DIR)/commands/cmd_runtime.c \
 	$(SRC_DIR)/runtime_monitor.c \
+	$(SRC_DIR)/process_manager.c \
 	$(SRC_DIR)/terminal.c \
 	$(COMMON_DIR)/utils.c \
 	$(COMMON_DIR)/log.c \
@@ -450,3 +456,5 @@ help:
 	@echo "  make help            Show this help"
 
 -include $(DEPS)
+
+

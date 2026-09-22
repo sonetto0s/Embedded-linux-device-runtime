@@ -1,259 +1,343 @@
 #include "runtime_monitor.h"
 
+#include "error.h"
+#include <ctype.h>
+#include <dirent.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#include <dirent.h>
-#include <ctype.h>
+#include <time.h>
 
-
-static int read_memory(double *usage)
+typedef struct
 {
-    FILE *fp = fopen("/proc/meminfo","r");
+    unsigned long long total;
+    unsigned long long idle;
+} CpuSnapshot;
+
+static int read_cpu_snapshot(CpuSnapshot *snapshot)
+{
+    if (!snapshot)
+    {
+        return MiniShell_ERR_UNKNOWN;
+    }
+
+    FILE *fp = fopen("/proc/stat", "r");
 
     if (!fp)
-        return -1;
-
+    {
+        return MiniShell_ERR_OPEN;
+    }
 
     char line[256];
 
-    unsigned long total = 0;
-    unsigned long available = 0;
-
-
-    while (fgets(line,sizeof(line),fp))
+    if (!fgets(line, sizeof(line), fp))
     {
-        if (sscanf(line,"MemTotal: %lu kB",&total) == 1)
-            continue;
-
-
-        if (sscanf(line,"MemAvailable: %lu kB",&available) == 1)
-            continue;
+        fclose(fp);
+        return MiniShell_ERR_UNKNOWN;
     }
 
-
     fclose(fp);
 
+    unsigned long long user = 0;
+    unsigned long long nice = 0;
+    unsigned long long system = 0;
+    unsigned long long idle = 0;
+    unsigned long long iowait = 0;
+    unsigned long long irq = 0;
+    unsigned long long softirq = 0;
+    unsigned long long steal = 0;
 
-    if (total == 0)
-        return -1;
+    int fields = sscanf(line, "cpu %llu %llu %llu %llu %llu %llu %llu %llu",
+                        &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal);
 
-
-    *usage =
-        (double)(total - available) * 100.0 /
-        (double)total;
-
-
-    return 0;
-}
-
-
-
-static int read_load(double load[3])
-{
-    FILE *fp = fopen("/proc/loadavg","r");
-
-    if (!fp)
-        return -1;
-
-
-    int ret = fscanf(fp,
-                     "%lf %lf %lf",
-                     &load[0],
-                     &load[1],
-                     &load[2]);
-
-
-    fclose(fp);
-
-
-    return ret == 3 ? 0 : -1;
-}
-
-
-
-static int read_uptime(double *uptime)
-{
-    FILE *fp = fopen("/proc/uptime","r");
-
-    if (!fp)
-        return -1;
-
-
-    int ret = fscanf(fp,"%lf",uptime);
-
-
-    fclose(fp);
-
-
-    return ret == 1 ? 0 : -1;
-}
-
-
-
-static unsigned int count_process(void)
-{
-    DIR *dir = opendir("/proc");
-
-    if (!dir)
-        return 0;
-
-
-    unsigned int count = 0;
-
-
-    struct dirent *entry;
-
-
-    while ((entry = readdir(dir)))
+    if (fields < 4)
     {
-        int numeric = 1;
+        return MiniShell_ERR_UNKNOWN;
+    }
 
+    snapshot->idle = idle + iowait;
+    snapshot->total = user + nice + system + idle + iowait + irq + softirq + steal;
 
-        for (size_t i = 0;
-             entry->d_name[i];
-             i++)
+    if (snapshot->total == 0)
+    {
+        return MiniShell_ERR_UNKNOWN;
+    }
+
+    return MiniShell_OK;
+}
+
+static int wait_cpu_sample(void)
+{
+    struct timespec request = {0, 100000000L};
+
+    while (nanosleep(&request, &request) < 0)
+    {
+        if (errno != EINTR)
         {
-            if (!isdigit(entry->d_name[i]))
-            {
-                numeric = 0;
-                break;
-            }
+            return MiniShell_ERR_UNKNOWN;
         }
-
-
-        if (numeric)
-            count++;
     }
 
-
-    closedir(dir);
-
-
-    return count;
+    return MiniShell_OK;
 }
-
-
 
 static int read_cpu(double *usage)
 {
-    FILE *fp = fopen("/proc/stat","r");
-
-    if (!fp)
-        return -1;
-
-
-    char line[256];
-
-
-    if (!fgets(line,sizeof(line),fp))
+    if (!usage)
     {
-        fclose(fp);
-        return -1;
+        return MiniShell_ERR_UNKNOWN;
     }
 
+    CpuSnapshot first;
+    CpuSnapshot second;
+
+    int ret = read_cpu_snapshot(&first);
+
+    if (ret != MiniShell_OK)
+    {
+        return ret;
+    }
+
+    ret = wait_cpu_sample();
+
+    if (ret != MiniShell_OK)
+    {
+        return ret;
+    }
+
+    ret = read_cpu_snapshot(&second);
+
+    if (ret != MiniShell_OK)
+    {
+        return ret;
+    }
+
+    if (second.total <= first.total || second.idle < first.idle)
+    {
+        return MiniShell_ERR_UNKNOWN;
+    }
+
+    unsigned long long total_delta = second.total - first.total;
+    unsigned long long idle_delta = second.idle - first.idle;
+
+    if (idle_delta > total_delta)
+    {
+        return MiniShell_ERR_UNKNOWN;
+    }
+
+    *usage = (double)(total_delta - idle_delta) * 100.0 / (double)total_delta;
+
+    return MiniShell_OK;
+}
+
+static int read_memory(double *usage)
+{
+    if (!usage)
+    {
+        return MiniShell_ERR_UNKNOWN;
+    }
+
+    FILE *fp = fopen("/proc/meminfo", "r");
+
+    if (!fp)
+    {
+        return MiniShell_ERR_OPEN;
+    }
+
+    char line[256];
+    unsigned long total = 0;
+    unsigned long available = 0;
+
+    while (fgets(line, sizeof(line), fp))
+    {
+        if (sscanf(line, "MemTotal: %lu kB", &total) == 1)
+        {
+            continue;
+        }
+
+        if (sscanf(line, "MemAvailable: %lu kB", &available) == 1)
+        {
+            continue;
+        }
+    }
 
     fclose(fp);
 
+    if (total == 0 || available > total)
+    {
+        return MiniShell_ERR_UNKNOWN;
+    }
 
-    unsigned long user;
-    unsigned long nice;
-    unsigned long system;
-    unsigned long idle;
+    *usage = (double)(total - available) * 100.0 / (double)total;
 
-
-    sscanf(line,
-           "cpu %lu %lu %lu %lu",
-           &user,
-           &nice,
-           &system,
-           &idle);
-
-
-
-    unsigned long total =
-        user + nice + system + idle;
-
-
-    if (!total)
-        return -1;
-
-
-    *usage =
-        (double)(total-idle)*100.0/
-        (double)total;
-
-
-    return 0;
+    return MiniShell_OK;
 }
 
+static int read_load(double load[3])
+{
+    if (!load)
+    {
+        return MiniShell_ERR_UNKNOWN;
+    }
 
+    FILE *fp = fopen("/proc/loadavg", "r");
+
+    if (!fp)
+    {
+        return MiniShell_ERR_OPEN;
+    }
+
+    int fields = fscanf(fp, "%lf %lf %lf", &load[0], &load[1], &load[2]);
+
+    fclose(fp);
+
+    return fields == 3 ? MiniShell_OK : MiniShell_ERR_UNKNOWN;
+}
+
+static int read_uptime(double *uptime)
+{
+    if (!uptime)
+    {
+        return MiniShell_ERR_UNKNOWN;
+    }
+
+    FILE *fp = fopen("/proc/uptime", "r");
+
+    if (!fp)
+    {
+        return MiniShell_ERR_OPEN;
+    }
+
+    int fields = fscanf(fp, "%lf", uptime);
+
+    fclose(fp);
+
+    return fields == 1 ? MiniShell_OK : MiniShell_ERR_UNKNOWN;
+}
+
+static int is_pid_name(const char *name)
+{
+    if (!name || !*name)
+    {
+        return 0;
+    }
+
+    for (size_t i = 0; name[i]; i++)
+    {
+        if (!isdigit((unsigned char)name[i]))
+        {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+static int read_process_count(unsigned int *count)
+{
+    if (!count)
+    {
+        return MiniShell_ERR_UNKNOWN;
+    }
+
+    DIR *dir = opendir("/proc");
+
+    if (!dir)
+    {
+        return MiniShell_ERR_OPEN;
+    }
+
+    unsigned int result = 0;
+    struct dirent *entry;
+
+    while ((entry = readdir(dir)) != NULL)
+    {
+        if (is_pid_name(entry->d_name))
+        {
+            result++;
+        }
+    }
+
+    closedir(dir);
+
+    *count = result;
+
+    return MiniShell_OK;
+}
 
 int runtime_monitor_collect(RuntimeMonitor *monitor)
 {
     if (!monitor)
-        return -1;
+    {
+        return MiniShell_ERR_UNKNOWN;
+    }
 
+    memset(monitor, 0, sizeof(*monitor));
 
-    memset(monitor,0,sizeof(*monitor));
+    int ret = read_cpu(&monitor->cpu_usage);
 
+    if (ret != MiniShell_OK)
+    {
+        return ret;
+    }
 
-    if (read_cpu(&monitor->cpu_usage))
-        return -1;
+    ret = read_memory(&monitor->memory_usage);
 
+    if (ret != MiniShell_OK)
+    {
+        return ret;
+    }
 
-    if (read_memory(&monitor->memory_usage))
-        return -1;
+    ret = read_load(monitor->load_average);
 
+    if (ret != MiniShell_OK)
+    {
+        return ret;
+    }
 
-    if (read_load(monitor->load_average))
-        return -1;
+    ret = read_uptime(&monitor->uptime);
 
+    if (ret != MiniShell_OK)
+    {
+        return ret;
+    }
 
-    if (read_uptime(&monitor->uptime))
-        return -1;
-
-
-    monitor->process_count =
-        count_process();
-
-
-    return 0;
+    return read_process_count(&monitor->process_count);
 }
-
-
 
 void runtime_monitor_print(const RuntimeMonitor *monitor)
 {
     if (!monitor)
+    {
         return;
+    }
 
+    unsigned long long total_seconds = (unsigned long long)monitor->uptime;
+    unsigned long long days = total_seconds / 86400ULL;
+    unsigned long long hours = (total_seconds % 86400ULL) / 3600ULL;
+    unsigned long long minutes = (total_seconds % 3600ULL) / 60ULL;
+    unsigned long long seconds = total_seconds % 60ULL;
 
-    printf("\n");
-
-    printf("========== Runtime Monitor ==========\n");
-
-
-    printf("CPU Usage       : %.1f %%\n",
-           monitor->cpu_usage);
-
-
-    printf("Memory Usage    : %.1f %%\n",
-           monitor->memory_usage);
-
-
+    printf("\n========== Runtime Monitor ==========\n");
+    printf("CPU Usage       : %.1f %%\n", monitor->cpu_usage);
+    printf("Memory Usage    : %.1f %%\n", monitor->memory_usage);
     printf("Load Average    : %.2f %.2f %.2f\n",
-           monitor->load_average[0],
-           monitor->load_average[1],
-           monitor->load_average[2]);
+           monitor->load_average[0], monitor->load_average[1], monitor->load_average[2]);
+    printf("Process Count   : %u\n", monitor->process_count);
 
-
-    printf("Process Count   : %u\n",
-           monitor->process_count);
-
-
-    printf("Uptime          : %.2f seconds\n",
-           monitor->uptime);
-
+    if (days > 0)
+    {
+        printf("Uptime          : %llud %02llu:%02llu:%02llu\n",
+               days, hours, minutes, seconds);
+    }
+    else
+    {
+        printf("Uptime          : %02llu:%02llu:%02llu\n",
+               hours, minutes, seconds);
+    }
 
     printf("=====================================\n\n");
 }
+
+
+

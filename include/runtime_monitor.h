@@ -8,14 +8,10 @@ typedef struct
     double load_average[3];
     unsigned int process_count;
     double uptime;
-
 } RuntimeMonitor;
 
-
 int runtime_monitor_collect(RuntimeMonitor *monitor);
-
-
 void runtime_monitor_print(const RuntimeMonitor *monitor);
 
-
 #endif
+
