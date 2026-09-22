@@ -48,7 +48,10 @@ set(MINISHELL_CORE_SOURCES
     src/system_info.c
     src/commands/cmd_runtime.c
     src/runtime_monitor.c
+    src/runtime_snapshot.c
     src/process_monitor.c
+    src/network_monitor.c
+    src/thermal_monitor.c
     src/device_tree.c
     src/hardware_info.c
     src/sysfs_io.c
@@ -107,6 +110,9 @@ if(BUILD_TESTING)
         tests/test_system_info.c
         tests/test_runtime_monitor.c
         tests/test_process_monitor.c
+        tests/test_network_monitor.c
+        tests/test_thermal_monitor.c
+        tests/test_runtime_snapshot.c
         tests/test_device_tree.c
         tests/test_hardware_info.c
         tests/test_sysfs_io.c

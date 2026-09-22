@@ -142,7 +142,11 @@ void test_shell_monitor(void)
     TEST_ASSERT(strstr(output, "Runtime Monitor") != NULL);
     TEST_ASSERT(strstr(output, "CPU Usage") != NULL);
     TEST_ASSERT(strstr(output, "Memory Usage") != NULL);
+    TEST_ASSERT(strstr(output, "Temperature") != NULL);
     TEST_ASSERT(strstr(output, "Process Count") != NULL);
+    TEST_ASSERT(strstr(output, "Network") != NULL);
+    TEST_ASSERT(strstr(output, "RX Bytes") != NULL);
+    TEST_ASSERT(strstr(output, "TX Bytes") != NULL);
     TEST_ASSERT(strstr(output, "Uptime") != NULL);
     TEST_ASSERT(WIFEXITED(status));
     TEST_ASSERT_EQ(WEXITSTATUS(status), 0);

@@ -2,7 +2,7 @@
 
 #include "error.h"
 #include "process_monitor.h"
-#include "runtime_monitor.h"
+#include "runtime_snapshot.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -25,21 +25,73 @@ static void print_uptime(double uptime)
     printf("%02llu:%02llu:%02llu", hours, minutes, seconds);
 }
 
-static void print_runtime_monitor(const RuntimeMonitor *monitor)
+static void print_runtime_snapshot(const RuntimeSnapshot *snapshot)
 {
-    if (!monitor)
+    if (!snapshot)
     {
         return;
     }
 
+    const RuntimeMonitor *runtime = &snapshot->runtime;
+    const ThermalRuntimeInfo *thermal = runtime_snapshot_hottest_thermal(snapshot);
+    const NetworkRuntimeInfo *network = runtime_snapshot_primary_network(snapshot);
+
     printf("\n========== Runtime Monitor ==========\n");
-    printf("CPU Usage       : %.1f %%\n", monitor->cpu_usage);
-    printf("Memory Usage    : %.1f %%\n", monitor->memory_usage);
+    printf("CPU Usage       : %.1f %%\n", runtime->cpu_usage);
+    printf("Memory Usage    : %.1f %%\n", runtime->memory_usage);
     printf("Load Average    : %.2f %.2f %.2f\n",
-           monitor->load_average[0], monitor->load_average[1], monitor->load_average[2]);
-    printf("Process Count   : %u\n", monitor->process_count);
+           runtime->load_average[0], runtime->load_average[1], runtime->load_average[2]);
+
+    if (thermal)
+    {
+        printf("Temperature     : %.1f C", thermal->temperature);
+
+        if (thermal->type[0])
+        {
+            printf(" (%s)", thermal->type);
+        }
+
+        printf("\n");
+    }
+    else
+    {
+        printf("Temperature     : N/A\n");
+    }
+
+    printf("Process Count   : %u\n", runtime->process_count);
+
+    if (network)
+    {
+        printf("Network         : %s (%s)\n",
+               network->name, network->state[0] ? network->state : "N/A");
+
+        if (network->has_rx)
+        {
+            printf("RX Bytes        : %llu\n", network->rx_bytes);
+        }
+        else
+        {
+            printf("RX Bytes        : N/A\n");
+        }
+
+        if (network->has_tx)
+        {
+            printf("TX Bytes        : %llu\n", network->tx_bytes);
+        }
+        else
+        {
+            printf("TX Bytes        : N/A\n");
+        }
+    }
+    else
+    {
+        printf("Network         : N/A\n");
+        printf("RX Bytes        : N/A\n");
+        printf("TX Bytes        : N/A\n");
+    }
+
     printf("Uptime          : ");
-    print_uptime(monitor->uptime);
+    print_uptime(runtime->uptime);
     printf("\n");
     printf("=====================================\n\n");
 }
@@ -123,8 +175,8 @@ int cmd_monitor(Command *cmd, struct ShellContext *ctx)
         return MiniShell_ERR_PARSE;
     }
 
-    RuntimeMonitor monitor;
-    int ret = runtime_monitor_collect(&monitor);
+    RuntimeSnapshot snapshot;
+    int ret = runtime_snapshot_collect(&snapshot);
 
     if (ret != MiniShell_OK)
     {
@@ -132,7 +184,7 @@ int cmd_monitor(Command *cmd, struct ShellContext *ctx)
         return ret;
     }
 
-    print_runtime_monitor(&monitor);
+    print_runtime_snapshot(&snapshot);
 
     return MiniShell_OK;
 }
@@ -189,6 +241,3 @@ int cmd_psinfo(Command *cmd, struct ShellContext *ctx)
 
     return MiniShell_OK;
 }
-
-
-

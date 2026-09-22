@@ -44,6 +44,12 @@ void test_runtime_monitor_collect(void);
 void test_process_monitor_invalid(void);
 void test_process_monitor_current(void);
 void test_process_monitor_collect(void);
+void test_network_monitor_invalid(void);
+void test_network_monitor_fixture(void);
+void test_thermal_monitor_invalid(void);
+void test_thermal_monitor_fixture(void);
+void test_runtime_snapshot_null(void);
+void test_runtime_snapshot_collect(void);
 void test_system_info_collect_null(void);
 void test_system_info_collect(void);
 void test_system_info_fields(void);
@@ -183,6 +189,12 @@ int main(void)
         {"process_monitor_invalid", test_process_monitor_invalid},
         {"process_monitor_current", test_process_monitor_current},
         {"process_monitor_collect", test_process_monitor_collect},
+        {"network_monitor_invalid", test_network_monitor_invalid},
+        {"network_monitor_fixture", test_network_monitor_fixture},
+        {"thermal_monitor_invalid", test_thermal_monitor_invalid},
+        {"thermal_monitor_fixture", test_thermal_monitor_fixture},
+        {"runtime_snapshot_null", test_runtime_snapshot_null},
+        {"runtime_snapshot_collect", test_runtime_snapshot_collect},
         {"system_info_collect_null", test_system_info_collect_null},
         {"system_info_collect", test_system_info_collect},
         {"system_info_fields", test_system_info_fields},
