@@ -65,22 +65,28 @@
               ShellContext状态
 ```
 
-V1.6在原有Shell Core之外增加独立Hardware Runtime层:
+Shell Core之外当前包含Hardware Runtime以及Runtime Monitor相关模块:
 
 ```
                     Builtin
                        |
-       |---------------|---------------|
-       |               |               |
-    sysinfo          dtinfo          hwinfo
-       |               |               |
-system_info      device_tree     hardware_info
-                                       |
-                                   sysfs_io
-                                       |
-                                      /sys
-                                       |
-                                 Linux Kernel
+       |---------------|------------------------|
+       |               |                        |
+    sysinfo          dtinfo               Runtime Command
+    hwinfo             |                        |
+       |            device_tree            cmd_runtime
+       |                                        |
+       |                             |----------|----------|
+       |                           monitor               psinfo
+       |                             |                    |
+hardware_info                 RuntimeSnapshot      ProcessMonitor
+system_info                         |
+       |                    |-------|-------|
+   sysfs_io             Runtime  Thermal  Network
+       |                Monitor  Monitor  Monitor
+      /sys                 |       |        |
+                           |      /sys     /sys
+                          /proc
 ```
 
 LED控制:
@@ -213,6 +219,272 @@ fflush(stdout)
 ```
 
 因此即使Builtin内部逻辑成功,输出设备最终写入失败时仍然返回非0状态.
+
+## Runtime Command流程
+
+Runtime相关Builtin不会直接在builtin.c中读取/proc或者/sys.
+
+```
+Builtin Table
+ |
+builtin_monitor / builtin_psinfo
+ |
+cmd_runtime
+ |
+ |-----------------------|
+ |                       |
+monitor                 psinfo
+ |                       |
+RuntimeSnapshot       ProcessMonitor
+```
+
+cmd_runtime负责:
+
+```
+参数检查
+Runtime API调用
+Console输出
+错误输出
+```
+
+依赖方向:
+
+```
+Shell/Builtin
+ |
+cmd_runtime
+ |
+Runtime Core
+```
+
+Runtime Core不依赖:
+
+```
+builtin
+shell_context
+cmd_runtime
+```
+
+## RuntimeMonitor流程
+
+```
+runtime_monitor_collect
+ |
+ |-------------------------------|
+ |        |        |        |    |
+CPU     Memory    Load    Uptime Process
+```
+
+当前保存:
+
+```
+cpu_usage
+memory_usage
+load_average[3]
+process_count
+uptime
+```
+
+CPU:
+
+```
+/proc/stat
+ |
+Snapshot 1
+ |
+100ms
+ |
+Snapshot 2
+ |
+total_delta / idle_delta
+ |
+CPU Usage
+```
+
+Memory:
+
+```
+/proc/meminfo
+ |
+MemTotal
+MemAvailable
+```
+
+Load:
+
+```
+/proc/loadavg
+```
+
+Uptime:
+
+```
+/proc/uptime
+```
+
+Process Count:
+
+```
+/proc
+ |
+数字PID目录
+ |
+count
+```
+
+## ProcessMonitor流程
+
+单个PID:
+
+```
+psinfo <pid>
+ |
+process_monitor_get
+ |
+/proc/<pid>/status
+ |
+ProcessInfo
+```
+
+当前读取:
+
+```
+Name
+State
+VmRSS
+Threads
+```
+
+全部Process:
+
+```
+psinfo
+ |
+process_monitor_collect
+ |
+/proc
+ |
+数字PID
+ |
+process_monitor_get
+ |
+ProcessInfo[]
+ |
+qsort
+ |
+PID升序
+```
+
+Process在扫描期间可能退出.
+
+```
+发现PID
+ |
+读取status失败
+ |
+skip
+```
+
+不会因为一个PID消失导致整个Process列表失败.
+
+## RuntimeSnapshot流程
+
+monitor使用RuntimeSnapshot统一收集状态.
+
+```
+monitor
+ |
+cmd_monitor
+ |
+runtime_snapshot_collect
+ |
+ |-------------------------|
+ |            |            |
+Runtime    Thermal       Network
+Monitor    Monitor       Monitor
+ |            |            |
+/proc       /sys          /sys
+ |
+RuntimeSnapshot
+ |
+print_runtime_snapshot
+```
+
+RuntimeSnapshot保存:
+
+```
+RuntimeMonitor runtime
+ThermalMonitor thermal
+NetworkMonitor network
+available_sources
+failed_sources
+```
+
+System Runtime读取失败时Snapshot失败.
+
+Thermal或者Network读取失败时:
+
+```
+failed_sources记录
+ |
+其他Runtime数据继续使用
+```
+
+## ThermalMonitor流程
+
+```
+thermal_monitor_collect
+ |
+/sys/class/thermal
+ |
+thermal_zone*
+ |
+ |-----------|
+ |           |
+type        temp
+ |
+ThermalRuntimeInfo[]
+```
+
+当前通过:
+
+```
+thermal_monitor_hottest
+```
+
+选择存在有效Temperature的最高温度Zone.
+
+不会固定使用thermal_zone0.
+
+`thermal_monitor_collect_from`允许Test使用临时Directory模拟Thermal接口.
+
+## NetworkMonitor流程
+
+```
+network_monitor_collect
+ |
+/sys/class/net
+ |
+Interface
+ |
+ |-----------------------------|
+ |              |              |
+operstate    rx_bytes        tx_bytes
+ |
+NetworkRuntimeInfo[]
+```
+
+Primary Interface选择:
+
+```
+非lo + up
+ |
+第一个非lo
+ |
+第一个现有Interface
+```
+
+`network_monitor_collect_from`允许Test使用临时Directory模拟Network接口.
 
 ## Child启动流程
 
@@ -534,7 +806,7 @@ clearerr
 
 ## 外部命令退出状态
 
-当前V1.6采用:
+当前采用:
 
 ```
 0        成功
@@ -549,7 +821,7 @@ Pipeline使用最后一个Process退出状态.
 
 ## Config流程
 
-V1.6配置路径解析:
+当前Config路径解析:
 
 ```
 Shell启动
@@ -735,7 +1007,7 @@ close
 ```
 sysfs_read_text
  |
-strtol/strtoul
+strtol/strtoul/strtoull
  |
 检查完整字符串
  |
@@ -1001,32 +1273,28 @@ Sanitizer   -> 内存以及Undefined Behavior
 Stability   -> 长时间资源以及运行状态
 ```
 
-## V1.6整体分层
+## 当前整体分层
 
 ```
 用户输入
  |
 Shell Core
  |
- |--------------------------------------|
- |                                      |
-Command/Process                         Hardware Runtime
- |                                      |
-Parser                                 System Info
-Dispatcher                             Device Tree
-Executor                               Hardware Info
-Job                                    LED Control
-Signal                                      |
-Event                                   Sysfs IO
-Terminal                                    |
- |                                      Linux Kernel
- |                                           |
- |-------------------------------------------|
-                     |
-               Orange Pi 5 Plus
+ |--------------------------|---------------------------|
+ |                          |                           |
+Command/Process         Runtime Manager            Hardware Runtime
+ |                          |                           |
+Parser                  RuntimeMonitor              System Info
+Dispatcher              ProcessMonitor              Device Tree
+Executor                 RuntimeSnapshot            Hardware Info
+Job                      ThermalMonitor             LED Control
+Signal                    NetworkMonitor                 |
+Event                         |                      Sysfs IO
+Terminal                       |                           |
+ |                            /proc /sys             Linux Kernel
+ |                                                        |
+ |--------------------------------------------------------|
+                           |
+                     Orange Pi 5 Plus
 ```
-
-V1.6没有把硬件逻辑直接写进Shell核心模块.
-
-后续Device Layer可以继续建立在Hardware Runtime以及现有Event机制之上
 

@@ -80,6 +80,12 @@ APP_SRC := \
 	$(SRC_DIR)/event.c \
 	$(SRC_DIR)/builtin_table.c \
 	$(SRC_DIR)/system_info.c \
+	$(SRC_DIR)/commands/cmd_runtime.c \
+	$(SRC_DIR)/runtime_monitor.c \
+	$(SRC_DIR)/runtime_snapshot.c \
+	$(SRC_DIR)/process_monitor.c \
+	$(SRC_DIR)/network_monitor.c \
+	$(SRC_DIR)/thermal_monitor.c \
 	$(SRC_DIR)/device_tree.c \
 	$(SRC_DIR)/hardware_info.c \
 	$(SRC_DIR)/sysfs_io.c \
@@ -100,6 +106,11 @@ TEST_SRC := \
 	$(TEST_DIR)/test_shell_context.c \
 	$(TEST_DIR)/test_builtin_table.c \
 	$(TEST_DIR)/test_system_info.c \
+	$(TEST_DIR)/test_runtime_monitor.c \
+	$(TEST_DIR)/test_process_monitor.c \
+	$(TEST_DIR)/test_network_monitor.c \
+	$(TEST_DIR)/test_thermal_monitor.c \
+	$(TEST_DIR)/test_runtime_snapshot.c \
 	$(TEST_DIR)/test_device_tree.c \
 	$(TEST_DIR)/test_hardware_info.c \
 	$(TEST_DIR)/test_sysfs_io.c \
@@ -125,6 +136,12 @@ TEST_SRC := \
 	$(SRC_DIR)/sysfs_io.c \
 	$(SRC_DIR)/led_control.c \
 	$(SRC_DIR)/system_info.c \
+	$(SRC_DIR)/commands/cmd_runtime.c \
+	$(SRC_DIR)/runtime_monitor.c \
+	$(SRC_DIR)/runtime_snapshot.c \
+	$(SRC_DIR)/process_monitor.c \
+	$(SRC_DIR)/network_monitor.c \
+	$(SRC_DIR)/thermal_monitor.c \
 	$(SRC_DIR)/terminal.c \
 	$(COMMON_DIR)/utils.c \
 	$(COMMON_DIR)/log.c \
@@ -423,10 +440,6 @@ help:
 	@echo "  make uninstall       Remove installed MiniShell files"
 	@echo "  make print-config    Show current build/deployment configuration"
 	@echo ""
-	@echo "Install variables:"
-	@echo "  PREFIX=/opt/minishell"
-	@echo "  DESTDIR=/tmp/rootfs"
-	@echo ""
 	@echo "Tests:"
 	@echo "  make test            Build and run unit tests"
 	@echo "  make integration     Build and run integration tests"
@@ -448,3 +461,5 @@ help:
 	@echo "  make help            Show this help"
 
 -include $(DEPS)
+
+

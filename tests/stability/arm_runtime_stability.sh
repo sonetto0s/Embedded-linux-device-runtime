@@ -28,13 +28,15 @@ cleanup()
     rm -rf "$TMP_ROOT"
 }
 
+trap cleanup EXIT
+
 fail()
 {
     echo "[FAIL] $*" >&2
 
     if [[ -f "$LOG" ]]
     then
-        echo
+        echo >&2
         echo "========== MiniShell Last Output ==========" >&2
         tail -n 80 "$LOG" >&2 || true
         echo "===========================================" >&2
@@ -102,7 +104,7 @@ wait_for_marker()
     local marker="$1"
     local retry
 
-    for retry in $(seq 1 900)
+    for retry in $(seq 1 1200)
     do
         if grep -Fq "$marker" "$LOG" 2>/dev/null
         then
@@ -141,7 +143,13 @@ check_log()
         fail "fatal runtime error detected in output"
     fi
 
+    if grep -Eqi 'monitor: failed|psinfo: (failed|unable|invalid)' "$LOG"
+    then
+        fail "runtime manager command error detected in output"
+    fi
+
     pass "no fatal runtime errors in output"
+    pass "runtime manager commands completed without error"
 }
 
 if [[ ! -x "$BIN" ]]
@@ -165,7 +173,6 @@ SHELL_PID=$!
 exec 3>"$FIFO"
 
 wait_for_shell
-
 sleep 0.2
 
 FD_START="$(count_fds)"
@@ -176,21 +183,21 @@ echo "Initial FD  : $FD_START"
 echo "Initial RSS : ${RSS_START} KB"
 echo
 
-echo "[1/8] foreground command stress"
+echo "[1/9] foreground command stress"
 
 for i in $(seq 1 300)
 do
     send_command "true"
 done
 
-echo "[2/8] pipeline stress"
+echo "[2/9] pipeline stress"
 
 for i in $(seq 1 100)
 do
     send_command "printf abc | wc -c"
 done
 
-echo "[3/8] redirect stress"
+echo "[3/9] redirect stress"
 
 for i in $(seq 1 100)
 do
@@ -198,14 +205,14 @@ do
     send_command "cat < $REDIRECT_FILE > /dev/null"
 done
 
-echo "[4/8] config reload stress"
+echo "[4/9] config reload stress"
 
 for i in $(seq 1 100)
 do
     send_command "reload"
 done
 
-echo "[5/8] working-directory independent reload"
+echo "[5/9] working-directory independent reload"
 
 send_command "cd /tmp"
 
@@ -214,7 +221,7 @@ do
     send_command "reload"
 done
 
-echo "[6/8] background process stress"
+echo "[6/9] background process stress"
 
 for i in $(seq 1 200)
 do
@@ -223,7 +230,7 @@ done
 
 send_command "sleep 2"
 
-echo "[7/8] hardware information stress"
+echo "[7/9] hardware information stress"
 
 for i in $(seq 1 20)
 do
@@ -233,14 +240,21 @@ do
     send_command "led list"
 done
 
-echo "[8/8] completion synchronization"
+echo "[8/9] runtime manager stress"
+
+for i in $(seq 1 20)
+do
+    send_command "monitor"
+    send_command "psinfo $SHELL_PID"
+done
+
+echo "[9/9] completion synchronization"
 
 MARKER="__MINISHELL_ARM_STABILITY_DONE__"
 
 send_command "echo $MARKER"
 
 wait_for_marker "$MARKER"
-
 sleep 1
 
 if ! kill -0 "$SHELL_PID" 2>/dev/null
@@ -299,7 +313,6 @@ check_zombies
 check_log
 
 send_command "exit"
-
 exec 3>&-
 
 set +e
@@ -322,12 +335,13 @@ echo " ARM runtime stability validation passed"
 echo "=========================================="
 echo
 echo "Commands:"
-echo "  foreground : 300"
-echo "  pipeline   : 100"
-echo "  redirect   : 200"
-echo "  reload     : 150"
-echo "  background : 200"
-echo "  hw groups  : 20"
+echo "  foreground     : 300"
+echo "  pipeline       : 100"
+echo "  redirect       : 200"
+echo "  reload         : 150"
+echo "  background     : 200"
+echo "  hw groups      : 20"
+echo "  runtime groups : 20"
 echo
 echo "Final FD  : $FD_END"
 echo "Final RSS : ${RSS_END} KB"

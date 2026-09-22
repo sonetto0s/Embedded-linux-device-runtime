@@ -32,7 +32,7 @@ rockchip,rk3588
 
 ## ARM64原生编译
 
-V1.6正式在Orange Pi 5 Plus中进行ARM64原生编译以及运行.
+当前直接在Orange Pi 5 Plus中进行ARM64原生编译以及运行.
 
 编译:
 
@@ -133,7 +133,7 @@ soc-thermal
 
 ## Device Tree
 
-V1.6新增Device Tree Runtime Inspector.
+当前Device Tree Runtime Inspector:
 
 执行:
 
@@ -295,7 +295,7 @@ green_led
 1
 ```
 
-V1.6使用:
+当前使用:
 
 ```
 led list
@@ -311,7 +311,7 @@ led info blue_led
 
 ## Sysfs访问
 
-V1.6增加公共访问层:
+当前公共访问层:
 
 ```
 include/sysfs_io.h
@@ -324,6 +324,7 @@ src/sysfs_io.c
 sysfs_read_text
 sysfs_read_long
 sysfs_read_ulong
+sysfs_read_ull
 sysfs_write_text
 ```
 
@@ -369,6 +370,102 @@ sysfs_io
  |
 Linux sysfs
 ```
+
+## Runtime Monitor
+
+执行:
+
+```
+monitor
+```
+
+当前读取:
+
+```
+CPU Usage
+Memory Usage
+Load Average
+Temperature
+Process Count
+Network
+RX Bytes
+TX Bytes
+Uptime
+```
+
+主要数据来源:
+
+```
+/proc/stat
+/proc/meminfo
+/proc/loadavg
+/proc/uptime
+/proc
+/sys/class/thermal
+/sys/class/net
+```
+
+CPU Usage使用两次/proc/stat Snapshot差值计算.
+
+当前不会直接读取SoC寄存器.
+
+## Process Monitor
+
+执行:
+
+```
+psinfo
+```
+
+或者:
+
+```
+psinfo 1
+```
+
+当前读取:
+
+```
+PID
+Name
+State
+RSS
+Threads
+```
+
+来源:
+
+```
+/proc/<pid>/status
+```
+
+扫描/proc时允许Process在扫描过程中退出.
+
+单个PID读取失败会被跳过.
+
+## Runtime Snapshot
+
+当前monitor通过RuntimeSnapshot统一收集:
+
+```
+System Runtime
+Thermal Runtime
+Network Runtime
+```
+
+System属于必要Source.
+
+Thermal以及Network属于可选Source.
+
+例如当前系统无法读取Thermal:
+
+```
+Temperature : N/A
+```
+
+其他Runtime信息仍然可以继续显示.
+
+Network同理.
 
 ## LED Control
 
@@ -418,7 +515,7 @@ MiniShell不会自动sudo或者修改系统权限.
 
 ## Board Interface Audit
 
-V1.6已经对Orange Pi当前Linux接口进行检查.
+当前已经对Orange Pi主要Linux接口进行检查.
 
 GPIO:
 
@@ -457,9 +554,9 @@ Serial:
 /dev/ttyS9
 ```
 
-这些接口在V1.6只进行Audit.
+这些接口当前只进行Audit.
 
-V1.6不继续加入:
+当前没有加入:
 
 ```
 UART Device Layer
@@ -472,7 +569,7 @@ SPI Device Layer
 
 ## Config部署路径
 
-V1.6配置查找顺序:
+当前Config查找顺序:
 
 ```
 MINISHELL_CONFIG
@@ -564,50 +661,45 @@ docs/deployment.md
 
 ## ARM Runtime Stability
 
-V1.6新增:
+执行:
 
 ```
-tests/stability/arm_runtime_stability.sh
+./tests/stability/arm_runtime_stability.sh
 ```
 
-自动压力内容:
+当前主要压力:
 
 ```
-Foreground Command        300次
-Pipeline                  100次
-Redirect                  200次
-Config reload             150次
-Background Job            200次
-Hardware Info             20组
+Foreground Command
+Pipeline
+Redirect
+Config Reload
+Background Process
+Hardware Information
+Runtime Monitor
+Process Monitor
 ```
 
-运行过程中检查:
+主要检查:
 
 ```
-FD
-RSS
-Zombie
-Shell存活
+MiniShell存活
+FD数量
+RSS变化
+Zombie Child
 Redirect结果
-Shell正常退出
+Runtime Error
+正常退出
 ```
 
-Orange Pi最终结果:
+Runtime压力主要执行:
 
 ```
-ARM Runtime Stability PASS
-FD Check PASS
-RSS Check PASS
-Zombie Check PASS
-Runtime Error Check PASS
-Shell Exit PASS
+monitor
+psinfo <MiniShell PID>
 ```
 
-详细说明:
-
-```
-docs/stability.md
-```
+用于检查Runtime模块持续读取/proc以及/sys后的资源状态.
 
 ## Job Control真机验证
 
@@ -712,26 +804,24 @@ ASAN_OPTIONS
 
 ## 当前测试结果
 
-Orange Pi 5 Plus:
+Orange Pi 5 Plus当前验证:
 
 ```
 Unit Test:
 
-100 Cases
-777 Assertions
+111 Cases
 0 Failed
 
 
 Integration Test:
 
-44 Cases
-348 Assertions
+46 Cases
 0 Failed
 ```
 
-不同平台由于可选Hardware Info接口不同,Assertion数量可能存在少量变化.
+ProcessMonitor测试会根据当前系统Process数量执行部分排序Assertion,因此Assertion数量可能随运行环境变化.
 
-## V1.6最终状态
+## 当前最终状态
 
 ```
 Orange Pi 5 Plus平台确认         PASS
@@ -745,6 +835,9 @@ Network                         PASS
 LED读取                         PASS
 LED控制                         PASS
 Sysfs访问层                     PASS
+Runtime Monitor                 PASS
+Process Monitor                 PASS
+Runtime Snapshot                PASS
 Config部署路径                  PASS
 Make部署                        PASS
 CMake部署                       PASS
@@ -753,7 +846,4 @@ ARM Runtime Stability           PASS
 ASan/LSan/UBSan                 PASS
 Job Control真机验证             PASS
 ```
-
-V1.6已经完成MiniShell从PC/Linux用户态工程向真实ARM Linux板端环境的第一次完整迁移
-后续设备接口以及Device Layer进入下一版本继续开发
 

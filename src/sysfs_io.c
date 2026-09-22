@@ -1,4 +1,5 @@
 #include "sysfs_io.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -79,6 +80,7 @@ int sysfs_read_long(const char *path, long *value)
     }
 
     errno = 0;
+
     char *end = NULL;
     long result = strtol(buffer, &end, 10);
 
@@ -89,6 +91,7 @@ int sysfs_read_long(const char *path, long *value)
     }
 
     *value = result;
+
     return 0;
 }
 
@@ -114,6 +117,7 @@ int sysfs_read_ulong(const char *path, unsigned long *value)
     }
 
     errno = 0;
+
     char *end = NULL;
     unsigned long result = strtoul(buffer, &end, 10);
 
@@ -124,6 +128,44 @@ int sysfs_read_ulong(const char *path, unsigned long *value)
     }
 
     *value = result;
+
+    return 0;
+}
+
+int sysfs_read_ull(const char *path, unsigned long long *value)
+{
+    if (!path || !value)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    char buffer[64];
+
+    if (sysfs_read_text(path, buffer, sizeof(buffer)) < 0)
+    {
+        return -1;
+    }
+
+    if (buffer[0] == '-')
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    errno = 0;
+
+    char *end = NULL;
+    unsigned long long result = strtoull(buffer, &end, 10);
+
+    if (errno != 0 || end == buffer || *end != '\0')
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    *value = result;
+
     return 0;
 }
 
@@ -166,6 +208,7 @@ int sysfs_write_text(const char *path, const char *value)
 
     return 0;
 }
+
 
 
 

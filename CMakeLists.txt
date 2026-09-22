@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(myminishell
-    VERSION 1.6
+    VERSION 1.7
     LANGUAGES C
 )
 
 include(CTest)
+enable_testing()
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -45,6 +46,12 @@ set(MINISHELL_CORE_SOURCES
     src/event.c
     src/builtin_table.c
     src/system_info.c
+    src/commands/cmd_runtime.c
+    src/runtime_monitor.c
+    src/runtime_snapshot.c
+    src/process_monitor.c
+    src/network_monitor.c
+    src/thermal_monitor.c
     src/device_tree.c
     src/hardware_info.c
     src/sysfs_io.c
@@ -101,6 +108,11 @@ if(BUILD_TESTING)
         tests/test_shell_context.c
         tests/test_builtin_table.c
         tests/test_system_info.c
+        tests/test_runtime_monitor.c
+        tests/test_process_monitor.c
+        tests/test_network_monitor.c
+        tests/test_thermal_monitor.c
+        tests/test_runtime_snapshot.c
         tests/test_device_tree.c
         tests/test_hardware_info.c
         tests/test_sysfs_io.c
@@ -202,6 +214,5 @@ install(
     FILES "${CMAKE_CURRENT_SOURCE_DIR}/config/config.conf"
     DESTINATION config
 )
-
 
 

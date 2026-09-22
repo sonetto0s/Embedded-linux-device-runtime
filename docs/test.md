@@ -2,7 +2,7 @@
 
 ## 本文件用以记录测试指令运行结果,验证当前版本效果
 
-## 当前版本 : V1.6
+## 当前版本 : V1.7 Linux Runtime Manager
 
 ## 运行环境
 
@@ -467,7 +467,7 @@ config_load失败
 旧MiniShellConfig完整保留
 ```
 
-V1.6增加部署Config测试.
+当前同时包含部署Config测试.
 
 当前查找顺序:
 
@@ -660,6 +660,203 @@ heartbeat后Active Trigger恢复
 
 写入完成后代码会重新读取sysfs状态进行验证.
 
+## Runtime Monitor测试
+
+Unit Test:
+
+```
+tests/test_runtime_monitor.c
+```
+
+主要检查:
+
+```
+NULL参数
+CPU Usage范围
+Memory Usage范围
+Load Average
+Process Count
+Uptime
+```
+
+CPU以及Memory要求:
+
+```
+0 <= Usage <= 100
+```
+
+测试直接读取当前Linux /proc.
+
+## Process Monitor测试
+
+Unit Test:
+
+```
+tests/test_process_monitor.c
+```
+
+主要检查:
+
+```
+非法PID
+NULL参数
+读取当前Test Process
+扫描/proc
+PID排序
+当前Test Process存在
+```
+
+Process数量由当前Linux环境决定.
+
+因此部分Assertion数量会根据当前/proc实际内容变化.
+
+## Network Monitor测试
+
+Unit Test:
+
+```
+tests/test_network_monitor.c
+```
+
+测试不会依赖真实Network Interface状态.
+
+通过/tmp创建Fixture模拟:
+
+```
+eth0
+lo
+operstate
+statistics/rx_bytes
+statistics/tx_bytes
+```
+
+主要验证:
+
+```
+Interface扫描
+State
+RX/TX Bytes
+Primary Interface
+```
+
+## Thermal Monitor测试
+
+Unit Test:
+
+```
+tests/test_thermal_monitor.c
+```
+
+通过/tmp创建Fixture模拟:
+
+```
+thermal_zone0
+thermal_zone1
+type
+temp
+```
+
+主要验证:
+
+```
+Thermal Zone扫描
+Temperature转换
+最高Temperature选择
+```
+
+## Runtime Snapshot测试
+
+Unit Test:
+
+```
+tests/test_runtime_snapshot.c
+```
+
+主要检查:
+
+```
+NULL参数
+System Runtime Source
+available_sources
+failed_sources
+CPU范围
+Memory范围
+Process Count
+Optional Thermal
+Optional Network
+```
+
+System属于必要Source.
+
+Thermal以及Network属于可选Source.
+
+## Runtime命令Integration测试
+
+Integration新增:
+
+```
+shell_monitor
+shell_psinfo
+```
+
+monitor检查:
+
+```
+Runtime Monitor
+CPU Usage
+Memory Usage
+Temperature
+Process Count
+Network
+RX Bytes
+TX Bytes
+Uptime
+```
+
+psinfo检查:
+
+```
+Process Information
+PID
+Name
+State
+Threads
+```
+
+测试完整路径:
+
+```
+Parser
+ |
+Dispatcher
+ |
+Builtin
+ |
+cmd_runtime
+ |
+Runtime Module
+```
+
+## Runtime错误测试
+
+Release检查以及手工验证包含:
+
+```
+monitor invalid
+psinfo abc
+psinfo -1
+psinfo 99999999
+```
+
+要求:
+
+```
+非法参数正常返回
+不存在Process正常报错
+Shell本身不异常退出
+后续Command继续运行
+```
+
 ## Unit Test
 
 执行:
@@ -668,21 +865,21 @@ heartbeat后Active Trigger恢复
 make test
 ```
 
-Orange Pi 5 Plus当前最终结果:
+当前源码注册:
 
 ```
-Test Cases : 100
-Assertions : 777
-Passed     : 777
+Test Cases : 111
 Failed     : 0
 ```
 
-由于HardwareInfo测试会根据实际硬件接口执行部分条件Assertion,不同平台Assertion数量可能略有变化.
+ProcessMonitor测试会根据当前系统Process数量执行部分排序Assertion.
+
+因此Assertion数量可能随运行环境变化.
 
 Test Case数量保持:
 
 ```
-100
+111
 ```
 
 ## Integration Test
@@ -693,12 +890,10 @@ Test Case数量保持:
 make integration
 ```
 
-当前最终结果:
+当前源码注册:
 
 ```
-Test Cases : 44
-Assertions : 348
-Passed     : 348
+Test Cases : 46
 Failed     : 0
 ```
 
@@ -732,28 +927,29 @@ FIFO Ctrl+C
 FIFO Ctrl+Z
 Job/Shell termios恢复
 后台启动Terminal规则
+monitor
+psinfo
 ```
 
 ## 当前测试总量
 
-Orange Pi 5 Plus:
+当前源码注册:
 
 ```
 Unit Test:
-100 Cases
-777 Assertions
+111 Cases
 
 Integration Test:
-44 Cases
-348 Assertions
+46 Cases
 
 Total:
-144 Cases
-1125 Assertions
+157 Cases
 0 Failed
 ```
 
-Assertion数量存在平台差异时以当前平台实际输出为准.
+Assertion数量可能根据当前系统Process数量变化.
+
+最终以当前环境实际Test输出以及`0 Failed`为准.
 
 ## 完整测试
 
@@ -770,7 +966,7 @@ Unit Test PASS
 Integration Test PASS
 ```
 
-V1.6当前验证通过.
+当前验证通过.
 
 ## Strict测试
 
@@ -791,7 +987,7 @@ make strict
 -Werror
 ```
 
-当前V1.6验证:
+当前验证:
 
 ```
 Unit Test PASS
@@ -976,7 +1172,7 @@ cmake --build build/cmake-release --parallel
 ctest --test-dir build/cmake-release --output-on-failure
 ```
 
-当前Make/CMake均包含V1.6新增模块:
+当前Make/CMake均包含主要模块:
 
 ```
 device_tree
@@ -1012,7 +1208,7 @@ file build/arm64/minishell
 make arm64-package
 ```
 
-V1.6除ARM64交叉编译以外,已经完成Orange Pi真实aarch64平台原生运行.
+当前除ARM64交叉编译以外,同时完成Orange Pi真实aarch64平台原生运行.
 
 ## Deployment测试
 
@@ -1057,13 +1253,13 @@ Make以及CMake使用相同目标目录结构.
 
 ## ARM Runtime Stability测试
 
-脚本:
+执行:
 
-```bash
+```
 ./tests/stability/arm_runtime_stability.sh
 ```
 
-当前压力:
+当前压力包含:
 
 ```
 Foreground Command
@@ -1075,9 +1271,11 @@ sysinfo
 dtinfo
 hwinfo
 led list
+monitor
+psinfo
 ```
 
-检查:
+主要检查:
 
 ```
 Shell存活
@@ -1087,17 +1285,6 @@ Zombie Child
 Redirect结果
 Runtime错误
 Shell正常退出
-```
-
-Orange Pi 5 Plus当前结果:
-
-```
-ARM Runtime Stability PASS
-FD Check PASS
-RSS Check PASS
-Zombie Check PASS
-Runtime Error Check PASS
-Shell Exit PASS
 ```
 
 详细说明:
@@ -1148,31 +1335,32 @@ Ctrl+C
 
 ## Final Gate
 
-V1.6正式Release前最终执行:
+正式Release前最终执行:
 
 ```
-make clean
-make check
+./scripts/check_release.sh
+```
 
-make strict
+Release脚本当前主要执行:
 
-make clean
-make asan
-
-make cppcheck
-
-make clean
-make
-
-./tests/stability/arm_runtime_stability.sh
-
+```
+Repository Check
+Runtime Architecture Check
+Native Build
+Unit / Integration
+Strict
+ASan / UBSan
+cppcheck
+Runtime Smoke
+Runtime Error Path
 CMake Debug
 CMake Release
-make package
-make install DESTDIR
-git diff --check
-GitHub Actions
+ARM64 Native
+Package / Install
+Valgrind
 ```
+
+ARM Runtime Stability以及真实TTY Job Control继续作为板端最终验证内容.
 
 如果当前环境安装Valgrind:
 
@@ -1186,6 +1374,8 @@ Orange Pi真机额外确认:
 sysinfo
 dtinfo
 hwinfo
+monitor
+psinfo
 led list
 LED Control
 Ctrl+C
@@ -1213,6 +1403,11 @@ Config部署路径测试通过
 System Info测试通过
 Device Tree测试通过
 Hardware Info测试通过
+Runtime Monitor测试通过
+Process Monitor测试通过
+Network Monitor测试通过
+Thermal Monitor测试通过
+Runtime Snapshot测试通过
 sysfs_io测试通过
 LED Control测试通过
 Deployment测试通过
@@ -1222,5 +1417,3 @@ Zombie检查通过
 ASan/LSan/UBSan通过
 -Werror严格编译通过
 ```
-
-V1.6当前测试以及ARM平台稳定性验证完成

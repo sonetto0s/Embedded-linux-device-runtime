@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "cmd_runtime.h"
 
 int builtin_cd(Command *cmd, struct ShellContext *ctx)
 {
@@ -495,4 +496,16 @@ int builtin_led(Command *cmd, struct ShellContext *ctx)
 }
 
 
+int builtin_monitor(Command *cmd,
+                    struct ShellContext *ctx)
+{
+    return cmd_monitor(cmd, ctx);
+}
+
+
+int builtin_psinfo(Command *cmd,
+                   struct ShellContext *ctx)
+{
+    return cmd_psinfo(cmd, ctx);
+}
 

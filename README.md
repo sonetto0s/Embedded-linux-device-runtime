@@ -1,10 +1,11 @@
 # myminishell
 
 ## 项目简介
+
 👋👋
 这是一个基于Linux用户态实现的MiniShell,主要用来实现命令解析、进程控制、管道、重定向、Job Control、Signal/Event等功能,以此深入学习Linux系统编程相关机制🙃
-项目目前已逐步增加模块化、配置、日志、错误处理、Job管理、自动化测试、ARM Linux运行以及硬件运行时信息读取等工程化能力.
-V1.6已经正式迁移至ARM Linux/Orange Pi 5 Plus环境,并开始向嵌入式Linux设备管理终端方向扩展.
+项目目前已逐步增加模块化、配置、日志、错误处理、Job管理、自动化测试、ARM Linux运行、硬件运行时信息读取以及Linux Runtime监控等工程化能力.
+目前已经可以直接运行在Orange Pi 5 Plus ARM Linux环境,并继续向嵌入式Linux设备管理终端方向扩展.
 
 ## 开发环境
 
@@ -14,9 +15,18 @@ V1.6已经正式迁移至ARM Linux/Orange Pi 5 Plus环境,并开始向嵌入式L
 - 编程语言: C11
 - ARM平台: Orange Pi 5 Plus / RK3588 / aarch64
 
-## 当前版本:V1.6 ARM / Orange Pi
+## 当前版本:V1.7 Linux Runtime Manager
 
 ## 更新日志
+
+V1.7:
+- 新增process_monitor模块,读取Linux Process基础运行状态，monitor以及psinfo内建命令
+- 新增cmd_runtime模块,将Runtime数据获取与Console输出分开
+- 新增network_monitor模块,读取Network Interface状态以及RX/TX Bytes
+- 新增thermal_monitor模块,读取Linux Thermal Zone温度
+- Thermal以及Network读取失败不会影响其他Runtime信息
+- sysfs_io新增unsigned long long读取接口
+- 增加Runtime相关Unit Test以及Integration Test
 
 V1.6:
 - MiniShell正式迁移至Orange Pi 5 Plus ARM Linux环境
@@ -206,6 +216,8 @@ jobs
 help
 status
 sysinfo
+monitor
+psinfo
 dtinfo
 hwinfo
 led
@@ -293,6 +305,233 @@ STDIN
 Event self-pipe
 ```
 
+## Runtime Monitor
+
+```
+monitor
+```
+
+用于读取当前Linux Runtime状态:
+
+```
+CPU Usage
+Memory Usage
+Load Average
+Temperature
+Process Count
+Network
+RX Bytes
+TX Bytes
+Uptime
+```
+
+基础System Runtime由:
+
+```
+runtime_monitor
+```
+
+负责读取.
+
+CPU Usage读取:
+
+```
+/proc/stat
+```
+
+当前使用两次Snapshot差值计算:
+
+```
+Snapshot 1
+ |
+100ms
+ |
+Snapshot 2
+ |
+Delta
+ |
+CPU Usage
+```
+
+Memory读取:
+
+```
+/proc/meminfo
+```
+
+Load读取:
+
+```
+/proc/loadavg
+```
+
+Uptime读取:
+
+```
+/proc/uptime
+```
+
+Process Count通过扫描:
+
+```
+/proc
+```
+
+中的数字PID目录获取.
+
+## Process Monitor
+
+```
+psinfo
+```
+
+用于读取当前Linux Process状态.
+
+直接执行:
+
+```
+psinfo
+```
+
+显示当前能够读取的Process列表.
+
+指定PID:
+
+```
+psinfo 1
+```
+
+当前读取:
+
+```
+PID
+Name
+State
+RSS
+Threads
+```
+
+主要接口:
+
+```
+/proc/<pid>/status
+```
+
+Process扫描过程中某个PID可能已经退出.
+
+当前处理方式:
+
+```
+读取失败
+ |
+跳过该PID
+ |
+继续扫描
+```
+
+最终Process按照PID升序排列.
+
+## Runtime Snapshot
+
+monitor当前通过:
+
+```
+cmd_runtime
+ |
+runtime_snapshot
+ |
+ |-------------------------------|
+ |               |               |
+runtime_monitor thermal_monitor network_monitor
+ |               |               |
+/proc            /sys            /sys
+```
+
+统一读取Runtime状态.
+
+RuntimeSnapshot保存:
+
+```
+RuntimeMonitor
+ThermalMonitor
+NetworkMonitor
+available_sources
+failed_sources
+```
+
+当前Source:
+
+```
+SYSTEM
+THERMAL
+NETWORK
+```
+
+System Runtime属于主要数据源.
+
+Thermal以及Network属于可选数据源.
+
+如果Thermal读取失败:
+
+```
+Temperature : N/A
+```
+
+其他Runtime信息仍然可以正常输出.
+
+Network读取失败时同样不会影响CPU、Memory等信息.
+
+## Thermal Monitor
+
+主要读取:
+
+```
+/sys/class/thermal
+```
+
+当前遍历:
+
+```
+thermal_zone*
+```
+
+读取:
+
+```
+type
+temp
+```
+
+monitor最终选择当前存在有效数据的最高温度Thermal Zone.
+
+## Network Monitor
+
+主要读取:
+
+```
+/sys/class/net
+```
+
+读取:
+
+```
+operstate
+statistics/rx_bytes
+statistics/tx_bytes
+```
+
+当前Primary Interface选择顺序:
+
+```
+非lo并且up
+ |
+第一个非lo
+ |
+第一个现有Interface
+```
+
+因此不会固定依赖具体Interface名称.
+
 ## 配置系统
 
 默认开发配置文件:
@@ -309,7 +548,7 @@ max_job=64
 debug=0
 ```
 
-V1.6配置查找顺序:
+当前配置查找顺序:
 
 ```
 MINISHELL_CONFIG
@@ -363,7 +602,7 @@ RK3588 OPi 5 Plus
 
 ## Device Tree
 
-V1.6新增:
+当前支持:
 
 ```
 dtinfo
@@ -381,7 +620,7 @@ dtinfo
 
 ## Hardware Info
 
-V1.6新增:
+当前支持:
 
 ```
 hwinfo
@@ -407,7 +646,7 @@ LED
 
 ## Sysfs访问
 
-V1.6新增公共sysfs访问层:
+当前公共sysfs访问层:
 
 ```
 include/sysfs_io.h
@@ -420,14 +659,15 @@ src/sysfs_io.c
 sysfs_read_text
 sysfs_read_long
 sysfs_read_ulong
+sysfs_read_ull
 sysfs_write_text
 ```
 
-hardware_info以及led_control共同使用该模块完成底层sysfs访问.
+hardware_info、led_control、network_monitor以及thermal_monitor共同使用该模块完成底层sysfs访问.
 
 ## LED Control
 
-V1.6新增:
+当前支持:
 
 ```
 led
@@ -458,7 +698,7 @@ green_led
 
 ## Orange Pi 5 Plus
 
-V1.6已经在真实Orange Pi 5 Plus环境完成运行验证.
+当前已经在真实Orange Pi 5 Plus环境完成运行验证.
 
 当前环境:
 
@@ -484,6 +724,10 @@ CPUFreq
 Network
 LED读取
 LED控制
+Runtime Monitor
+Process Monitor
+Network Runtime
+Thermal Runtime
 Rootfs部署
 ARM Runtime Stability
 真实TTY Job Control
@@ -712,20 +956,18 @@ docs/stability.md
 
 ## 当前测试状态
 
-Orange Pi 5 Plus当前最终验证:
+Orange Pi 5 Plus当前验证:
 
 ```
 Unit Test:
 
-100 Cases
-777 Assertions
+111 Cases
 0 Failed
 
 
 Integration Test:
 
-44 Cases
-348 Assertions
+46 Cases
 0 Failed
 ```
 
@@ -735,11 +977,22 @@ Integration Test:
 make check
 make strict
 make asan
+CMake Debug
+CMake Release
+Runtime Smoke
 ARM Runtime Stability
 Orange Pi真实TTY Job Control
 ```
 
-不同运行平台存在可选硬件接口差异,Assertion数量可能根据实际硬件状态略有不同,Test Case数量保持一致.
+ProcessMonitor测试会根据当前系统实际Process数量执行部分Assertion,因此Assertion数量可能随运行环境变化.
+
+最终以:
+
+```
+Failed : 0
+```
+
+作为主要判断结果.
 
 ## 项目结构
 
@@ -770,6 +1023,7 @@ Orange Pi真实TTY Job Control
 ├── include
 │   ├── builtin.h
 │   ├── builtin_table.h
+│   ├── cmd_runtime.h
 │   ├── command.h
 │   ├── device_tree.h
 │   ├── dispatcher.h
@@ -778,14 +1032,23 @@ Orange Pi真实TTY Job Control
 │   ├── hardware_info.h
 │   ├── job.h
 │   ├── led_control.h
+│   ├── network_monitor.h
 │   ├── parser.h
+│   ├── process_monitor.h
+│   ├── runtime_monitor.h
+│   ├── runtime_snapshot.h
 │   ├── shell.h
 │   ├── shell_context.h
 │   ├── sig.h
 │   ├── sysfs_io.h
 │   ├── system_info.h
-│   └── terminal.h
+│   ├── terminal.h
+│   └── thermal_monitor.h
+├── scripts
+│   └── check_release.sh
 ├── src
+│   ├── commands
+│   │   └── cmd_runtime.c
 │   ├── builtin.c
 │   ├── builtin_table.c
 │   ├── command.c
@@ -797,13 +1060,18 @@ Orange Pi真实TTY Job Control
 │   ├── job.c
 │   ├── led_control.c
 │   ├── main.c
+│   ├── network_monitor.c
 │   ├── parser.c
+│   ├── process_monitor.c
+│   ├── runtime_monitor.c
+│   ├── runtime_snapshot.c
 │   ├── shell.c
 │   ├── shell_context.c
 │   ├── sig.c
 │   ├── sysfs_io.c
 │   ├── system_info.c
-│   └── terminal.c
+│   ├── terminal.c
+│   └── thermal_monitor.c
 └── tests
     ├── integration
     │   ├── test_integration_main.c
@@ -833,10 +1101,15 @@ Orange Pi真实TTY Job Control
     ├── test_led_control.c
     ├── test_log.c
     ├── test_main.c
+    ├── test_network_monitor.c
     ├── test_parser.c
+    ├── test_process_monitor.c
+    ├── test_runtime_monitor.c
+    ├── test_runtime_snapshot.c
     ├── test_shell_context.c
     ├── test_sysfs_io.c
-    └── test_system_info.c
+    ├── test_system_info.c
+    └── test_thermal_monitor.c
 ```
 
 ## 技术栈
@@ -849,9 +1122,11 @@ Orange Pi真实TTY Job Control
 - self-pipe
 - select
 - TTY/termios
+- /proc
 - Device Tree
 - sysfs
 - Linux LED subsystem
+- Linux Runtime Monitoring
 - ARM64/aarch64
 - GNU Make
 - CMake
@@ -864,19 +1139,22 @@ Orange Pi真实TTY Job Control
 
 ## 后续方向
 
-V1.6完成以后,MiniShell已经从纯PC/Linux用户态工程进入真实ARM Linux环境.
+当前Shell Core以及Runtime Manager已经形成相对稳定基础.
+
+后续项目不继续单纯扩展Shell语法或者堆积Builtin.
 
 后续方向:
 
 ```
 Device Layer
-UART
 设备通信
 设备状态管理
 Event Driven Device IO
 Linux Driver基础
 嵌入式设备管理终端
 ```
+
+MiniShell继续作为后续设备运行时的管理以及调试入口.
 
 ## 当前项目roadmap
 
@@ -912,9 +1190,20 @@ V1.6 ARM / Orange Pi                 OK
  ├── ARM Runtime Stability           OK
  └── Release Audit                   OK
 
-V1.7 Device Layer
-V1.8 Event Driven Device IO
-V1.9 Embedded Terminal Integration
-V2.0 Embedded Device Terminal
+V1.7 Linux Runtime Manager           OK
+ ├── Runtime Monitor                 OK
+ ├── Process Monitor                 OK
+ ├── Runtime Command Layer           OK
+ ├── Network Monitor                 OK
+ ├── Thermal Monitor                 OK
+ ├── Runtime Snapshot                OK
+ ├── Runtime Failure Isolation       OK
+ └── ARM Runtime Release             OK
+
+V1.8 Board Device Runtime
+V1.9 Event Driven Device IO
+V2.0 Embedded Linux Runtime
+V3.0 Edge Runtime / Edge Gateway
+
 ```
 
