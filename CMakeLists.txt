@@ -96,6 +96,26 @@ target_compile_options(minishell
         ${MINISHELL_COMMON_WARNINGS}
 )
 
+add_executable(gpio_probe
+    tools/gpio_probe.c
+    src/gpio_line.c
+)
+
+target_include_directories(gpio_probe
+    PRIVATE
+        ${MINISHELL_INCLUDE_DIRS}
+)
+
+target_compile_definitions(gpio_probe
+    PRIVATE
+        _POSIX_C_SOURCE=200809L
+)
+
+target_compile_options(gpio_probe
+    PRIVATE
+        ${MINISHELL_COMMON_WARNINGS}
+)
+
 if(BUILD_TESTING)
 
     set(MINISHELL_UNIT_TEST_SOURCES
@@ -214,5 +234,4 @@ install(
     FILES "${CMAKE_CURRENT_SOURCE_DIR}/config/config.conf"
     DESTINATION config
 )
-
 

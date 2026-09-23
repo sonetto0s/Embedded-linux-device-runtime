@@ -169,6 +169,10 @@ int sysfs_read_ull(const char *path, unsigned long long *value)
     return 0;
 }
 
+
+
+
+
 int sysfs_write_text(const char *path, const char *value)
 {
     if (!path || !value || !*value)

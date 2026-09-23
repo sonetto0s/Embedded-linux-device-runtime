@@ -49,6 +49,7 @@ CPPCHECK_FLAGS := \
 SRC_DIR := src
 TEST_DIR := tests
 INTEGRATION_DIR := $(TEST_DIR)/integration
+TOOLS_DIR := tools
 COMMON_DIR := common
 CONFIG_DIR := config
 
@@ -65,6 +66,11 @@ TARGET := $(BUILD_DIR)/minishell
 RUN_TARGET := shell
 TEST_TARGET := $(BUILD_DIR)/minishell_tests
 INTEGRATION_TARGET := $(BUILD_DIR)/minishell_integration_tests
+GPIO_PROBE_TARGET := $(BUILD_DIR)/gpio_probe
+
+GPIO_PROBE_SRC := \
+	$(TOOLS_DIR)/gpio_probe.c \
+	$(SRC_DIR)/gpio_line.c
 
 APP_SRC := \
 	$(SRC_DIR)/main.c \
@@ -174,11 +180,13 @@ TEST_CPPFLAGS := \
 APP_OBJ := $(APP_SRC:%.c=$(BUILD_DIR)/%.o)
 TEST_OBJ := $(TEST_SRC:%.c=$(BUILD_DIR)/%.o)
 INTEGRATION_OBJ := $(INTEGRATION_SRC:%.c=$(BUILD_DIR)/%.o)
+GPIO_PROBE_OBJ := $(GPIO_PROBE_SRC:%.c=$(BUILD_DIR)/%.o)
 
 DEPS := \
 	$(APP_OBJ:.o=.d) \
 	$(TEST_OBJ:.o=.d) \
-	$(INTEGRATION_OBJ:.o=.d)
+	$(INTEGRATION_OBJ:.o=.d) \
+	$(GPIO_PROBE_OBJ:.o=.d)
 
 .PHONY: \
 	all \
@@ -186,6 +194,7 @@ DEPS := \
 	binary \
 	shell \
 	run \
+	gpio-probe \
 	native \
 	arm64 \
 	package \
@@ -219,6 +228,8 @@ shell: $(TARGET)
 
 run: shell
 	./$(RUN_TARGET)
+
+gpio-probe: $(GPIO_PROBE_TARGET)
 
 native: shell
 
@@ -317,6 +328,11 @@ $(INTEGRATION_TARGET): $(INTEGRATION_OBJ)
 	@echo "  LD      $@"
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
+$(GPIO_PROBE_TARGET): $(GPIO_PROBE_OBJ)
+	@mkdir -p $(dir $@)
+	@echo "  LD      $@"
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
 $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@echo "  CC      $<"
@@ -343,7 +359,7 @@ integration: $(TARGET) $(INTEGRATION_TARGET)
 	MINISHELL_TEST_DIR="./$(BUILD_DIR)" \
 	./$(INTEGRATION_TARGET)
 
-check: test integration shell
+check: test integration shell gpio-probe
 
 debug:
 	@$(MAKE) \
@@ -411,6 +427,7 @@ cppcheck:
 		-I$(CONFIG_DIR) \
 		-I$(TEST_DIR) \
 		$(SRC_DIR) \
+		$(TOOLS_DIR) \
 		$(COMMON_DIR) \
 		$(CONFIG_DIR) \
 		$(TEST_DIR)
@@ -432,6 +449,7 @@ help:
 	@echo "  make native          Build native MiniShell"
 	@echo "  make arm64           Cross-compile ARM64 MiniShell"
 	@echo "  make run             Build and run native MiniShell"
+	@echo "  make gpio-probe      Build GPIO hardware probe"
 	@echo ""
 	@echo "Deployment:"
 	@echo "  make package         Create optimized native deployment package"
