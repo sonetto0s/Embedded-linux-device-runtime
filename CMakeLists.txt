@@ -116,6 +116,48 @@ target_compile_options(gpio_probe
         ${MINISHELL_COMMON_WARNINGS}
 )
 
+add_executable(i2c_probe
+    tools/i2c_probe.c
+    src/i2c_bus.c
+)
+
+target_include_directories(i2c_probe
+    PRIVATE
+        ${MINISHELL_INCLUDE_DIRS}
+)
+
+target_compile_definitions(i2c_probe
+    PRIVATE
+        _POSIX_C_SOURCE=200809L
+)
+
+target_compile_options(i2c_probe
+    PRIVATE
+        ${MINISHELL_COMMON_WARNINGS}
+)
+
+add_executable(oled_demo
+    tools/oled_demo.c
+    src/i2c_bus.c
+    src/oled.c
+    src/oled_font.c
+)
+
+target_include_directories(oled_demo
+    PRIVATE
+        ${MINISHELL_INCLUDE_DIRS}
+)
+
+target_compile_definitions(oled_demo
+    PRIVATE
+        _POSIX_C_SOURCE=200809L
+)
+
+target_compile_options(oled_demo
+    PRIVATE
+        ${MINISHELL_COMMON_WARNINGS}
+)
+
 if(BUILD_TESTING)
 
     set(MINISHELL_UNIT_TEST_SOURCES
@@ -234,4 +276,5 @@ install(
     FILES "${CMAKE_CURRENT_SOURCE_DIR}/config/config.conf"
     DESTINATION config
 )
+
 

@@ -67,10 +67,22 @@ RUN_TARGET := shell
 TEST_TARGET := $(BUILD_DIR)/minishell_tests
 INTEGRATION_TARGET := $(BUILD_DIR)/minishell_integration_tests
 GPIO_PROBE_TARGET := $(BUILD_DIR)/gpio_probe
+I2C_PROBE_TARGET := $(BUILD_DIR)/i2c_probe
+OLED_DEMO_TARGET := $(BUILD_DIR)/oled_demo
 
 GPIO_PROBE_SRC := \
 	$(TOOLS_DIR)/gpio_probe.c \
 	$(SRC_DIR)/gpio_line.c
+
+I2C_PROBE_SRC := \
+	$(TOOLS_DIR)/i2c_probe.c \
+	$(SRC_DIR)/i2c_bus.c
+
+OLED_DEMO_SRC := \
+	$(TOOLS_DIR)/oled_demo.c \
+	$(SRC_DIR)/i2c_bus.c \
+	$(SRC_DIR)/oled.c \
+	$(SRC_DIR)/oled_font.c
 
 APP_SRC := \
 	$(SRC_DIR)/main.c \
@@ -181,12 +193,16 @@ APP_OBJ := $(APP_SRC:%.c=$(BUILD_DIR)/%.o)
 TEST_OBJ := $(TEST_SRC:%.c=$(BUILD_DIR)/%.o)
 INTEGRATION_OBJ := $(INTEGRATION_SRC:%.c=$(BUILD_DIR)/%.o)
 GPIO_PROBE_OBJ := $(GPIO_PROBE_SRC:%.c=$(BUILD_DIR)/%.o)
+I2C_PROBE_OBJ := $(I2C_PROBE_SRC:%.c=$(BUILD_DIR)/%.o)
+OLED_DEMO_OBJ := $(OLED_DEMO_SRC:%.c=$(BUILD_DIR)/%.o)
 
 DEPS := \
 	$(APP_OBJ:.o=.d) \
 	$(TEST_OBJ:.o=.d) \
 	$(INTEGRATION_OBJ:.o=.d) \
-	$(GPIO_PROBE_OBJ:.o=.d)
+	$(GPIO_PROBE_OBJ:.o=.d) \
+	$(I2C_PROBE_OBJ:.o=.d) \
+	$(OLED_DEMO_OBJ:.o=.d)
 
 .PHONY: \
 	all \
@@ -195,6 +211,9 @@ DEPS := \
 	shell \
 	run \
 	gpio-probe \
+	i2c-probe \
+	oled-demo \
+	oled-font \
 	native \
 	arm64 \
 	package \
@@ -230,6 +249,13 @@ run: shell
 	./$(RUN_TARGET)
 
 gpio-probe: $(GPIO_PROBE_TARGET)
+
+i2c-probe: $(I2C_PROBE_TARGET)
+
+oled-demo: $(OLED_DEMO_TARGET)
+
+oled-font:
+	python3 $(TOOLS_DIR)/gen_oled_font.py
 
 native: shell
 
@@ -333,6 +359,16 @@ $(GPIO_PROBE_TARGET): $(GPIO_PROBE_OBJ)
 	@echo "  LD      $@"
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
+$(I2C_PROBE_TARGET): $(I2C_PROBE_OBJ)
+	@mkdir -p $(dir $@)
+	@echo "  LD      $@"
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+$(OLED_DEMO_TARGET): $(OLED_DEMO_OBJ)
+	@mkdir -p $(dir $@)
+	@echo "  LD      $@"
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
 $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@echo "  CC      $<"
@@ -359,7 +395,7 @@ integration: $(TARGET) $(INTEGRATION_TARGET)
 	MINISHELL_TEST_DIR="./$(BUILD_DIR)" \
 	./$(INTEGRATION_TARGET)
 
-check: test integration shell gpio-probe
+check: test integration shell gpio-probe i2c-probe oled-demo
 
 debug:
 	@$(MAKE) \
@@ -438,7 +474,9 @@ clean:
 	@echo "  CLEAN"
 	rm -rf build
 	rm -rf dist
+	rm -rf Testing
 	rm -f $(RUN_TARGET)
+	rm -f gpio_probe i2c_probe oled_demo
 
 help:
 	@echo "MiniShell build system"
@@ -450,6 +488,9 @@ help:
 	@echo "  make arm64           Cross-compile ARM64 MiniShell"
 	@echo "  make run             Build and run native MiniShell"
 	@echo "  make gpio-probe      Build GPIO hardware probe"
+	@echo "  make i2c-probe       Build I2C hardware probe"
+	@echo "  make oled-demo       Build OLED demo under build/default"
+	@echo "  make oled-font       Regenerate OLED font source"
 	@echo ""
 	@echo "Deployment:"
 	@echo "  make package         Create optimized native deployment package"

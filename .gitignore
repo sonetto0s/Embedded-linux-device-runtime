@@ -22,7 +22,7 @@
 *.la
 *.lo
 
-# Shared objects (inc. Windows DLLs)
+# Shared objects
 *.dll
 *.so
 *.so.*
@@ -41,6 +41,7 @@
 *.su
 *.idb
 *.pdb
+*.dwo
 
 # Kernel Module Compile Results
 *.mod*
@@ -50,10 +51,25 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Project runtime/build outputs
 shell
-.vscode/
-# debug information files
-*.dwo
+/minishell
+/gpio_probe
+/i2c_probe
+/oled_demo
+
 /build/
 /dist/
 /Testing/
+
+# Accidental in-source CMake outputs
+/CMakeCache.txt
+/CMakeFiles/
+/CTestTestfile.cmake
+/cmake_install.cmake
+/compile_commands.json
+
+.vscode/
+
+
