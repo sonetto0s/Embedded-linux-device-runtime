@@ -70,6 +70,7 @@ GPIO_PROBE_TARGET := $(BUILD_DIR)/gpio_probe
 I2C_PROBE_TARGET := $(BUILD_DIR)/i2c_probe
 OLED_DEMO_TARGET := $(BUILD_DIR)/oled_demo
 SERIAL_TEST_TARGET := $(BUILD_DIR)/serial_test
+WATCHDOG_DEMO_TARGET := $(BUILD_DIR)/watchdog_demo
 
 GPIO_PROBE_SRC := \
 	$(TOOLS_DIR)/gpio_probe.c \
@@ -88,6 +89,10 @@ OLED_DEMO_SRC := \
 SERIAL_TEST_SRC := \
 	$(TOOLS_DIR)/serial_test.c \
 	$(SRC_DIR)/serial_port.c
+
+WATCHDOG_DEMO_SRC := \
+	$(TOOLS_DIR)/watchdog_demo.c \
+	$(SRC_DIR)/watchdog_device.c
 
 APP_SRC := \
 	$(SRC_DIR)/main.c \
@@ -201,6 +206,7 @@ GPIO_PROBE_OBJ := $(GPIO_PROBE_SRC:%.c=$(BUILD_DIR)/%.o)
 I2C_PROBE_OBJ := $(I2C_PROBE_SRC:%.c=$(BUILD_DIR)/%.o)
 OLED_DEMO_OBJ := $(OLED_DEMO_SRC:%.c=$(BUILD_DIR)/%.o)
 SERIAL_TEST_OBJ := $(SERIAL_TEST_SRC:%.c=$(BUILD_DIR)/%.o)
+WATCHDOG_DEMO_OBJ := $(WATCHDOG_DEMO_SRC:%.c=$(BUILD_DIR)/%.o)
 
 DEPS := \
 	$(APP_OBJ:.o=.d) \
@@ -209,7 +215,8 @@ DEPS := \
 	$(GPIO_PROBE_OBJ:.o=.d) \
 	$(I2C_PROBE_OBJ:.o=.d) \
 	$(OLED_DEMO_OBJ:.o=.d) \
-	$(SERIAL_TEST_OBJ:.o=.d)
+	$(SERIAL_TEST_OBJ:.o=.d) \
+	$(WATCHDOG_DEMO_OBJ:.o=.d)
 
 .PHONY: \
 	all \
@@ -222,6 +229,7 @@ DEPS := \
 	oled-demo \
 	oled-font \
 	serial-test \
+	watchdog-demo \
 	native \
 	arm64 \
 	package \
@@ -266,6 +274,8 @@ oled-font:
 	python3 $(TOOLS_DIR)/gen_oled_font.py
 
 serial-test: $(SERIAL_TEST_TARGET)
+
+watchdog-demo: $(WATCHDOG_DEMO_TARGET)
 
 native: shell
 
@@ -384,6 +394,11 @@ $(SERIAL_TEST_TARGET): $(SERIAL_TEST_OBJ)
 	@echo "  LD      $@"
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
+$(WATCHDOG_DEMO_TARGET): $(WATCHDOG_DEMO_OBJ)
+	@mkdir -p $(dir $@)
+	@echo "  LD      $@"
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
 $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@echo "  CC      $<"
@@ -410,7 +425,7 @@ integration: $(TARGET) $(INTEGRATION_TARGET)
 	MINISHELL_TEST_DIR="./$(BUILD_DIR)" \
 	./$(INTEGRATION_TARGET)
 
-check: test integration shell gpio-probe i2c-probe oled-demo serial-test
+check: test integration shell gpio-probe i2c-probe oled-demo serial-test watchdog-demo
 
 debug:
 	@$(MAKE) \
@@ -491,7 +506,7 @@ clean:
 	rm -rf dist
 	rm -rf Testing
 	rm -f $(RUN_TARGET)
-	rm -f gpio_probe i2c_probe oled_demo serial_test
+	rm -f gpio_probe i2c_probe oled_demo serial_test watchdog_demo
 
 help:
 	@echo "MiniShell build system"
@@ -507,6 +522,7 @@ help:
 	@echo "  make oled-demo       Build OLED demo under build/default"
 	@echo "  make oled-font       Regenerate OLED font source"
 	@echo "  make serial-test     Build UART serial test tool"
+	@echo "  make watchdog-demo   Build hardware watchdog demo"
 	@echo ""
 	@echo "Deployment:"
 	@echo "  make package         Create optimized native deployment package"

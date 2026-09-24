@@ -178,6 +178,26 @@ target_compile_options(serial_test
         ${MINISHELL_COMMON_WARNINGS}
 )
 
+add_executable(watchdog_demo
+    tools/watchdog_demo.c
+    src/watchdog_device.c
+)
+
+target_include_directories(watchdog_demo
+    PRIVATE
+        ${MINISHELL_INCLUDE_DIRS}
+)
+
+target_compile_definitions(watchdog_demo
+    PRIVATE
+        _POSIX_C_SOURCE=200809L
+)
+
+target_compile_options(watchdog_demo
+    PRIVATE
+        ${MINISHELL_COMMON_WARNINGS}
+)
+
 if(BUILD_TESTING)
 
     set(MINISHELL_UNIT_TEST_SOURCES
@@ -296,4 +316,5 @@ install(
     FILES "${CMAKE_CURRENT_SOURCE_DIR}/config/config.conf"
     DESTINATION config
 )
+
 

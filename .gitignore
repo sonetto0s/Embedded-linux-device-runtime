@@ -59,6 +59,7 @@ shell
 /i2c_probe
 /oled_demo
 /serial_test
+/watchdog_demo
 
 /build/
 /dist/
@@ -72,5 +73,4 @@ shell
 /compile_commands.json
 
 .vscode/
-
 
