@@ -58,6 +58,7 @@ shell
 /gpio_probe
 /i2c_probe
 /oled_demo
+/serial_test
 
 /build/
 /dist/

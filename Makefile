@@ -69,6 +69,7 @@ INTEGRATION_TARGET := $(BUILD_DIR)/minishell_integration_tests
 GPIO_PROBE_TARGET := $(BUILD_DIR)/gpio_probe
 I2C_PROBE_TARGET := $(BUILD_DIR)/i2c_probe
 OLED_DEMO_TARGET := $(BUILD_DIR)/oled_demo
+SERIAL_TEST_TARGET := $(BUILD_DIR)/serial_test
 
 GPIO_PROBE_SRC := \
 	$(TOOLS_DIR)/gpio_probe.c \
@@ -83,6 +84,10 @@ OLED_DEMO_SRC := \
 	$(SRC_DIR)/i2c_bus.c \
 	$(SRC_DIR)/oled.c \
 	$(SRC_DIR)/oled_font.c
+
+SERIAL_TEST_SRC := \
+	$(TOOLS_DIR)/serial_test.c \
+	$(SRC_DIR)/serial_port.c
 
 APP_SRC := \
 	$(SRC_DIR)/main.c \
@@ -195,6 +200,7 @@ INTEGRATION_OBJ := $(INTEGRATION_SRC:%.c=$(BUILD_DIR)/%.o)
 GPIO_PROBE_OBJ := $(GPIO_PROBE_SRC:%.c=$(BUILD_DIR)/%.o)
 I2C_PROBE_OBJ := $(I2C_PROBE_SRC:%.c=$(BUILD_DIR)/%.o)
 OLED_DEMO_OBJ := $(OLED_DEMO_SRC:%.c=$(BUILD_DIR)/%.o)
+SERIAL_TEST_OBJ := $(SERIAL_TEST_SRC:%.c=$(BUILD_DIR)/%.o)
 
 DEPS := \
 	$(APP_OBJ:.o=.d) \
@@ -202,7 +208,8 @@ DEPS := \
 	$(INTEGRATION_OBJ:.o=.d) \
 	$(GPIO_PROBE_OBJ:.o=.d) \
 	$(I2C_PROBE_OBJ:.o=.d) \
-	$(OLED_DEMO_OBJ:.o=.d)
+	$(OLED_DEMO_OBJ:.o=.d) \
+	$(SERIAL_TEST_OBJ:.o=.d)
 
 .PHONY: \
 	all \
@@ -214,6 +221,7 @@ DEPS := \
 	i2c-probe \
 	oled-demo \
 	oled-font \
+	serial-test \
 	native \
 	arm64 \
 	package \
@@ -256,6 +264,8 @@ oled-demo: $(OLED_DEMO_TARGET)
 
 oled-font:
 	python3 $(TOOLS_DIR)/gen_oled_font.py
+
+serial-test: $(SERIAL_TEST_TARGET)
 
 native: shell
 
@@ -369,6 +379,11 @@ $(OLED_DEMO_TARGET): $(OLED_DEMO_OBJ)
 	@echo "  LD      $@"
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
+$(SERIAL_TEST_TARGET): $(SERIAL_TEST_OBJ)
+	@mkdir -p $(dir $@)
+	@echo "  LD      $@"
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
 $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@echo "  CC      $<"
@@ -395,7 +410,7 @@ integration: $(TARGET) $(INTEGRATION_TARGET)
 	MINISHELL_TEST_DIR="./$(BUILD_DIR)" \
 	./$(INTEGRATION_TARGET)
 
-check: test integration shell gpio-probe i2c-probe oled-demo
+check: test integration shell gpio-probe i2c-probe oled-demo serial-test
 
 debug:
 	@$(MAKE) \
@@ -476,7 +491,7 @@ clean:
 	rm -rf dist
 	rm -rf Testing
 	rm -f $(RUN_TARGET)
-	rm -f gpio_probe i2c_probe oled_demo
+	rm -f gpio_probe i2c_probe oled_demo serial_test
 
 help:
 	@echo "MiniShell build system"
@@ -491,6 +506,7 @@ help:
 	@echo "  make i2c-probe       Build I2C hardware probe"
 	@echo "  make oled-demo       Build OLED demo under build/default"
 	@echo "  make oled-font       Regenerate OLED font source"
+	@echo "  make serial-test     Build UART serial test tool"
 	@echo ""
 	@echo "Deployment:"
 	@echo "  make package         Create optimized native deployment package"
@@ -502,7 +518,7 @@ help:
 	@echo "Tests:"
 	@echo "  make test            Build and run unit tests"
 	@echo "  make integration     Build and run integration tests"
-	@echo "  make check           Run unit + integration tests"
+	@echo "  make check           Run tests and build hardware tools"
 	@echo ""
 	@echo "Quality:"
 	@echo "  make asan            Run tests with ASan + LSan + UBSan"
@@ -520,5 +536,4 @@ help:
 	@echo "  make help            Show this help"
 
 -include $(DEPS)
-
 

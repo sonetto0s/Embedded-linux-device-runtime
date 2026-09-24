@@ -158,6 +158,26 @@ target_compile_options(oled_demo
         ${MINISHELL_COMMON_WARNINGS}
 )
 
+add_executable(serial_test
+    tools/serial_test.c
+    src/serial_port.c
+)
+
+target_include_directories(serial_test
+    PRIVATE
+        ${MINISHELL_INCLUDE_DIRS}
+)
+
+target_compile_definitions(serial_test
+    PRIVATE
+        _POSIX_C_SOURCE=200809L
+)
+
+target_compile_options(serial_test
+    PRIVATE
+        ${MINISHELL_COMMON_WARNINGS}
+)
+
 if(BUILD_TESTING)
 
     set(MINISHELL_UNIT_TEST_SOURCES
@@ -276,5 +296,4 @@ install(
     FILES "${CMAKE_CURRENT_SOURCE_DIR}/config/config.conf"
     DESTINATION config
 )
-
 
