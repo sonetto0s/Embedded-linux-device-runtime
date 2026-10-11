@@ -2,7 +2,45 @@
 
 ## 本文件用以记录Orange Pi 5 Plus板级Runtime Hardware验证情况
 
-当前Phase主要验证:
+下方Foundation阶段的LED、Thermal以及Watchdog结果保留原始记录,本轮Device集成结果单独记录.
+
+本次V1.8将Board LED加入DeviceManager,已经在Orange Pi 5 Plus完成新的集成命令检查.
+
+Watchdog继续保持独立watchdog_demo工具,不会在Shell启动时自动打开或者Keepalive.
+
+当前Device Runtime说明见docs/device_layer.md,实物验收步骤见docs/device_validation.md.
+
+## V1.8 Board LED集成结果
+
+本轮通过用户sudo执行,随后通过SSH读取板端日志核对:
+
+```text
+device open blue_led
+device led blue_led on
+device read blue_led
+device led blue_led off
+device read blue_led
+device led blue_led trigger heartbeat
+device close blue_led
+```
+
+当前结果:
+
+```text
+On / Off / Heartbeat               PASS
+20次Open / On / Off / Close        PASS
+结束Trigger                        heartbeat
+```
+
+本轮以命令返回以及sysfs Brightness / Trigger回读核对控制结果.
+
+本轮没有启动Hardware Watchdog,下方Watchdog PASS属于此前Foundation验证.
+
+STM32、OLED以及外部Button尚未连接,不包含在本次Board LED结果中.
+
+## Hardware Foundation范围
+
+此前Phase主要验证:
 
 ```text
 Board LED
@@ -501,7 +539,9 @@ Ctrl+C
 
 真实测试已经可以正常返回Shell.
 
-最终Phase 4测试还会在退出后等待超过Actual Timeout时间确认Watchdog已经停止.
+当时Phase 4计划在退出后等待超过Actual Timeout时间确认Watchdog已经停止.
+
+本记录不将该待确认步骤写成已经PASS.
 
 ## watchdog_demo
 

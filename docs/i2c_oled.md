@@ -2,6 +2,12 @@
 
 ## 本文件用以记录Orange Pi 5 Plus I2C接口Bring-up以及当前OLED访问层实现情况
 
+以下接口、接线以及OLED显示结果来自此前I2C OLED Hardware Foundation阶段,保留原始记录.
+
+本次V1.8新增I2C以及OLED Device集成,尚未在真实开发板重新验证.
+
+当前Device Runtime说明见docs/device_layer.md,实物验收步骤见docs/device_validation.md.
+
 ## 当前I2C环境
 
 当前Orange Pi 5 Plus通过40Pin使用:
@@ -487,7 +493,9 @@ I2C数据刷新
 
 当前Demo保持为独立Hardware Bring-up工具.
 
-当前没有直接加入MiniShell Runtime Core.
+Foundation阶段Demo没有直接加入MiniShell Runtime Core.
+
+本次Device Backend复用已有i2c_bus、oled以及oled_font,独立Demo继续保留.
 
 ## UTF-8显示
 
@@ -688,7 +696,7 @@ src/oled.c
 src/oled_font.c
 ```
 
-当前没有将:
+Foundation阶段没有将:
 
 ```text
 src/i2c_bus.c
@@ -702,9 +710,9 @@ src/oled_font.c
 minishell_core
 ```
 
-当前I2C以及OLED仍然保持为V1.8 Hardware Bring-up基础.
+以上属于当时V1.8 Hardware Bring-up构建记录.
 
-正式Device Runtime集成留到后续Device Layer阶段.
+本次已经加入I2C以及OLED Device Backend,以下旧构建记录不代表新集成板端复验.
 
 当前CMake配置:
 
@@ -746,7 +754,7 @@ ctest --output-on-failure
 
 不会直接在源码根目录执行ctest.
 
-## 当前I2C OLED架构
+## Foundation阶段I2C OLED架构
 
 当前I2C以及OLED部分结构:
 
@@ -784,7 +792,7 @@ SSD1306 Compatible OLED
 
 当前oled属于OLED显示访问基础.
 
-当前没有加入:
+Foundation阶段没有加入:
 
 ```text
 DeviceManager
@@ -796,4 +804,8 @@ Button Page Switch
 EventLoop
 epoll
 ```
+
+本次已经通过DeviceManager管理OLED,支持clear、text、refresh以及on/off.
+
+OLED Dashboard、Button Page Switch以及EventLoop仍然不属于本次同步Device Layer范围.
 

@@ -145,4 +145,5 @@ jobs:
           make arm64-package
           test -f dist/arm64/bin/minishell
           test -f dist/arm64/config/config.conf
+          test -f dist/arm64/config/devices.conf
           file dist/arm64/bin/minishell | grep -q "ARM aarch64"

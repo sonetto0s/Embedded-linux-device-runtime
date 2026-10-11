@@ -48,6 +48,9 @@ void test_shell_builtin_output_failure_recovery(void);
 void test_shell_reload_after_cd(void);
 void test_shell_high_fd_fails_cleanly(void);
 void test_shell_fragmented_input_sigchld(void);
+void test_shell_device_lazy_list_and_reload(void);
+void test_shell_device_error_recovery(void);
+void test_shell_device_missing_name_status(void);
 
 int main(void)
 {
@@ -99,6 +102,9 @@ int main(void)
         {"shell_reload_after_cd", test_shell_reload_after_cd},
         {"shell_high_fd_fails_cleanly", test_shell_high_fd_fails_cleanly},
         {"shell_fragmented_input_sigchld", test_shell_fragmented_input_sigchld},
+        {"shell_device_lazy_list_and_reload", test_shell_device_lazy_list_and_reload},
+        {"shell_device_error_recovery", test_shell_device_error_recovery},
+        {"shell_device_missing_name_status", test_shell_device_missing_name_status},
     };
 
     printf("======= MiniShell Integration Test =======\n");

@@ -119,6 +119,17 @@ APP_SRC := \
 	$(SRC_DIR)/sysfs_io.c \
 	$(SRC_DIR)/led_control.c \
 	$(SRC_DIR)/terminal.c \
+	$(SRC_DIR)/device.c \
+	$(SRC_DIR)/device_config.c \
+	$(SRC_DIR)/device_manager.c \
+	$(SRC_DIR)/device_backend.c \
+	$(SRC_DIR)/uart_protocol.c \
+	$(SRC_DIR)/cmd_device.c \
+	$(SRC_DIR)/serial_port.c \
+	$(SRC_DIR)/gpio_line.c \
+	$(SRC_DIR)/i2c_bus.c \
+	$(SRC_DIR)/oled.c \
+	$(SRC_DIR)/oled_font.c \
 	$(COMMON_DIR)/utils.c \
 	$(COMMON_DIR)/log.c \
 	$(COMMON_DIR)/error.c \
@@ -145,9 +156,19 @@ TEST_SRC := \
 	$(TEST_DIR)/test_led_control.c \
 	$(TEST_DIR)/test_dispatcher.c \
 	$(TEST_DIR)/test_executor.c \
+	$(TEST_DIR)/test_device_executor.c \
 	$(TEST_DIR)/test_job.c \
 	$(TEST_DIR)/test_job_control.c \
 	$(TEST_DIR)/test_command.c \
+	$(TEST_DIR)/test_device.c \
+	$(TEST_DIR)/test_device_config.c \
+	$(TEST_DIR)/test_device_manager.c \
+	$(TEST_DIR)/test_device_backend.c \
+	$(TEST_DIR)/test_serial_port.c \
+	$(TEST_DIR)/test_uart_protocol.c \
+	$(TEST_DIR)/test_uart_protocol_mock.c \
+	$(TEST_DIR)/test_stm32_uart_protocol.c \
+	examples/stm32_uart_protocol/stm32_uart_protocol.c \
 	$(SRC_DIR)/shell.c \
 	$(SRC_DIR)/parser.c \
 	$(SRC_DIR)/executor.c \
@@ -171,6 +192,17 @@ TEST_SRC := \
 	$(SRC_DIR)/network_monitor.c \
 	$(SRC_DIR)/thermal_monitor.c \
 	$(SRC_DIR)/terminal.c \
+	$(SRC_DIR)/device.c \
+	$(SRC_DIR)/device_config.c \
+	$(SRC_DIR)/device_manager.c \
+	$(SRC_DIR)/device_backend.c \
+	$(SRC_DIR)/uart_protocol.c \
+	$(SRC_DIR)/cmd_device.c \
+	$(SRC_DIR)/serial_port.c \
+	$(SRC_DIR)/gpio_line.c \
+	$(SRC_DIR)/i2c_bus.c \
+	$(SRC_DIR)/oled.c \
+	$(SRC_DIR)/oled_font.c \
 	$(COMMON_DIR)/utils.c \
 	$(COMMON_DIR)/log.c \
 	$(COMMON_DIR)/error.c \
@@ -186,6 +218,7 @@ INTEGRATION_SRC := \
 	$(INTEGRATION_DIR)/test_shell_background.c \
 	$(INTEGRATION_DIR)/test_shell_pty.c \
 	$(INTEGRATION_DIR)/test_shell_input.c \
+	$(INTEGRATION_DIR)/test_shell_device.c \
 	$(TEST_DIR)/test_framework.c
 
 APP_CPPFLAGS := \
@@ -309,6 +342,7 @@ package-files: $(TARGET)
 	@install -d "$(DEPLOY_DIR)/config"
 	@install -m 0755 "$(TARGET)" "$(DEPLOY_DIR)/bin/minishell"
 	@install -m 0644 "$(CONFIG_DIR)/config.conf" "$(DEPLOY_DIR)/config/config.conf"
+	@install -m 0644 "$(CONFIG_DIR)/devices.conf" "$(DEPLOY_DIR)/config/devices.conf"
 
 arm64-package:
 	@command -v $(ARM64_CC) >/dev/null 2>&1 || { \
@@ -334,6 +368,7 @@ install: $(TARGET)
 	@install -d "$(INSTALL_CONFIGDIR)"
 	@install -m 0755 "$(TARGET)" "$(INSTALL_BINDIR)/minishell"
 	@install -m 0644 "$(CONFIG_DIR)/config.conf" "$(INSTALL_CONFIGDIR)/config.conf"
+	@install -m 0644 "$(CONFIG_DIR)/devices.conf" "$(INSTALL_CONFIGDIR)/devices.conf"
 	@echo "  Installed:"
 	@echo "    $(INSTALL_BINDIR)/minishell"
 	@echo "    $(INSTALL_CONFIGDIR)/config.conf"
@@ -344,6 +379,7 @@ uninstall:
 	@echo "  Root   : $(DESTDIR)"
 	@rm -f "$(INSTALL_BINDIR)/minishell"
 	@rm -f "$(INSTALL_CONFIGDIR)/config.conf"
+	@rm -f "$(INSTALL_CONFIGDIR)/devices.conf"
 	@rmdir "$(INSTALL_BINDIR)" 2>/dev/null || true
 	@rmdir "$(INSTALL_CONFIGDIR)" 2>/dev/null || true
 	@rmdir "$(DESTDIR)$(PREFIX)" 2>/dev/null || true

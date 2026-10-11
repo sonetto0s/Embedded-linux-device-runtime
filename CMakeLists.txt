@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(myminishell
-    VERSION 1.7
+    VERSION 1.8
     LANGUAGES C
 )
 
@@ -57,6 +57,17 @@ set(MINISHELL_CORE_SOURCES
     src/sysfs_io.c
     src/led_control.c
     src/terminal.c
+    src/device.c
+    src/device_config.c
+    src/device_manager.c
+    src/device_backend.c
+    src/uart_protocol.c
+    src/cmd_device.c
+    src/serial_port.c
+    src/gpio_line.c
+    src/i2c_bus.c
+    src/oled.c
+    src/oled_font.c
     common/utils.c
     common/log.c
     common/error.c
@@ -221,9 +232,19 @@ if(BUILD_TESTING)
         tests/test_led_control.c
         tests/test_dispatcher.c
         tests/test_executor.c
+        tests/test_device_executor.c
         tests/test_job.c
         tests/test_job_control.c
         tests/test_command.c
+        tests/test_device.c
+        tests/test_device_config.c
+        tests/test_device_manager.c
+        tests/test_device_backend.c
+        tests/test_serial_port.c
+        tests/test_uart_protocol.c
+        tests/test_uart_protocol_mock.c
+        tests/test_stm32_uart_protocol.c
+        examples/stm32_uart_protocol/stm32_uart_protocol.c
     )
 
     add_executable(minishell_tests
@@ -263,6 +284,7 @@ if(BUILD_TESTING)
         tests/integration/test_shell_background.c
         tests/integration/test_shell_input.c
         tests/integration/test_shell_pty.c
+        tests/integration/test_shell_device.c
         tests/test_framework.c
     )
 
@@ -314,6 +336,7 @@ install(
 
 install(
     FILES "${CMAKE_CURRENT_SOURCE_DIR}/config/config.conf"
+          "${CMAKE_CURRENT_SOURCE_DIR}/config/devices.conf"
     DESTINATION config
 )
 

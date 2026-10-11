@@ -1,5 +1,6 @@
 #include "builtin_table.h"
 #include "builtin.h"
+#include "cmd_device.h"
 #include "test_framework.h"
 
 typedef struct
@@ -24,6 +25,7 @@ static const ExpectedBuiltin expected_builtins[] = {
     {"fg", builtin_fg},
     {"bg", builtin_bg},
     {"reload", builtin_reload},
+    {"device", cmd_device},
 };
 
 void test_builtin_count(void)

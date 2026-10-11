@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/resource.h>
 #include <sys/select.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -74,6 +75,25 @@ static int append_data(char **buffer, size_t *length, size_t *capacity,
 
 static int open_high_fds(void)
 {
+    struct rlimit limit;
+    rlim_t required = (rlim_t)FD_SETSIZE + 16;
+
+    if (getrlimit(RLIMIT_NOFILE, &limit) < 0)
+        return -1;
+
+    if (limit.rlim_cur < required) {
+        if (limit.rlim_max != RLIM_INFINITY && limit.rlim_max < required) {
+            errno = EMFILE;
+            return -1;
+        }
+
+        /* This helper runs only in the test child, after fork. */
+        limit.rlim_cur = required;
+
+        if (setrlimit(RLIMIT_NOFILE, &limit) < 0)
+            return -1;
+    }
+
     int last_fd = -1;
 
     while (last_fd < FD_SETSIZE + 8) {

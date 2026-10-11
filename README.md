@@ -15,9 +15,18 @@
 - 编程语言: C11
 - ARM平台: Orange Pi 5 Plus / RK3588 / aarch64
 
-## 当前版本:V1.7 Linux Runtime Manager
+## 当前版本:V1.8 Board Device Runtime
 
 ## 更新日志
+
+V1.8:
+- 新增Device、DeviceOps以及DeviceManager,统一设备生命周期
+- UART、I2C、OLED、GPIO以及Board LED复用已有硬件访问层
+- 新增device命令,支持设备列表、状态、打开、关闭、读取、写入以及Reload
+- 新增STM32同步UART协议,PING、STATUS、LED以及HEARTBEAT
+- 增加设备配置、生命周期以及PTY协议测试
+- 完成Orange Pi板端软件检查以及Board LED集成检查,保留Hardware Foundation历史记录
+- STM32、OLED以及外部Button实物验收仍待接入外设后执行
 
 V1.7:
 - 新增process_monitor模块,读取Linux Process基础运行状态，monitor以及psinfo内建命令
@@ -224,6 +233,7 @@ led
 fg
 bg
 reload
+device
 ```
 
 ## 项目主要核心机制
@@ -696,9 +706,106 @@ green_led
 
 涉及写操作时仍然遵守Linux自身权限机制.
 
+## Device Layer
+
+当前统一管理:
+
+```text
+UART
+I2C
+OLED
+GPIO
+Board LED
+```
+
+当前流程:
+
+```text
+device Command
+ |
+cmd_device
+ |
+DeviceManager
+ |
+Device / DeviceOps
+ |
+已有Hardware访问层
+ |
+Linux设备接口
+```
+
+DeviceManager由ShellContext管理,配置加载时不会立即打开硬件.
+
+基础命令:
+
+```text
+device list
+device info stm32
+device open stm32
+device close stm32
+device reload
+device open button
+device read button
+device write <name> <byte ...>
+```
+
+STM32协议:
+
+```text
+device open stm32
+device ping stm32
+device status stm32
+device led stm32 on
+device led stm32 off
+device heartbeat stm32 42
+```
+
+OLED以及Board LED:
+
+```text
+device open oled
+device oled oled clear
+device oled oled text 0 0 Hello Device
+device oled oled refresh
+device open blue_led
+device led blue_led on
+device led blue_led off
+device led blue_led trigger heartbeat
+```
+
+设备配置:
+
+```text
+config/devices.conf
+MINISHELL_DEVICES_CONFIG
+```
+
+默认stm32、oled、button以及blue_led参数来自此前Orange Pi 5 Plus Bring-up记录.
+
+部署以前需要核实实际设备节点以及接线,配置不存在时Shell仍可以启动.
+
+当前UART使用一问一答以及1000ms整体Timeout.
+
+高级协议请求需要先显式open,Timeout不包含打开时间.
+
+发生Timeout以后先close并恢复STM32通信状态,再open重试.LED写操作超时以后先通过STATUS确认实际状态.
+
+Event Driven Device IO留到V1.9,本次不会启动自动Heartbeat调度或者Hardware Watchdog.
+
+详细说明:
+
+```text
+docs/device_layer.md
+docs/device_validation.md
+```
+
 ## Orange Pi 5 Plus
 
-当前已经在真实Orange Pi 5 Plus环境完成运行验证.
+以下属于此前Shell Core、Runtime Manager以及Hardware Foundation阶段的真实Orange Pi记录.
+
+本次V1.8已经在该开发板完成Normal / Strict测试、Sanitizer、cppcheck、CMake Debug / Release、ARM Runtime Stability、Package / Install以及Valgrind检查.
+
+UART真实设备节点的Open / Close、无外设Timeout、FD回收以及Board LED集成命令同样完成检查;STM32、OLED以及外部Button实物验证仍待执行.
 
 当前环境:
 
@@ -956,7 +1063,7 @@ docs/stability.md
 
 ## 当前测试状态
 
-Orange Pi 5 Plus当前验证:
+此前V1.7 Orange Pi 5 Plus验证:
 
 ```
 Unit Test:
@@ -971,7 +1078,7 @@ Integration Test:
 0 Failed
 ```
 
-同时完成:
+该阶段同时完成:
 
 ```
 make check
@@ -985,6 +1092,15 @@ Orange Pi真实TTY Job Control
 ```
 
 ProcessMonitor测试会根据当前系统实际Process数量执行部分Assertion,因此Assertion数量可能随运行环境变化.
+
+V1.8本轮146组Unit Test、49组Integration Test以及板端验收范围见:
+
+```text
+docs/test.md
+docs/device_validation.md
+```
+
+历史111 / 46 Cases不代表本次新增设备测试的数量.
 
 最终以:
 
@@ -1011,72 +1127,116 @@ Failed : 0
 ├── config
 │   ├── config.c
 │   ├── config.conf
+│   ├── devices.conf
 │   └── config.h
 ├── docs
 │   ├── architecture.md
 │   ├── debug_log.md
 │   ├── deployment.md
+│   ├── device_layer.md
+│   ├── device_validation.md
+│   ├── gpio.md
+│   ├── i2c_oled.md
 │   ├── module.md
 │   ├── orangepi5plus.md
 │   ├── stability.md
-│   └── test.md
+│   ├── test.md
+│   ├── uart_serial.md
+│   └── board_runtime_hardware.md
 ├── include
 │   ├── builtin.h
 │   ├── builtin_table.h
 │   ├── cmd_runtime.h
+│   ├── cmd_device.h
 │   ├── command.h
+│   ├── device.h
+│   ├── device_backend.h
+│   ├── device_config.h
+│   ├── device_manager.h
 │   ├── device_tree.h
 │   ├── dispatcher.h
 │   ├── event.h
 │   ├── executor.h
+│   ├── gpio_line.h
 │   ├── hardware_info.h
+│   ├── i2c_bus.h
 │   ├── job.h
 │   ├── led_control.h
 │   ├── network_monitor.h
+│   ├── oled.h
+│   ├── oled_font.h
 │   ├── parser.h
 │   ├── process_monitor.h
 │   ├── runtime_monitor.h
 │   ├── runtime_snapshot.h
+│   ├── serial_port.h
 │   ├── shell.h
 │   ├── shell_context.h
 │   ├── sig.h
 │   ├── sysfs_io.h
 │   ├── system_info.h
 │   ├── terminal.h
-│   └── thermal_monitor.h
+│   ├── uart_protocol.h
+│   ├── thermal_monitor.h
+│   └── watchdog_device.h
 ├── scripts
 │   └── check_release.sh
 ├── src
 │   ├── commands
 │   │   └── cmd_runtime.c
+│   ├── cmd_device.c
 │   ├── builtin.c
 │   ├── builtin_table.c
 │   ├── command.c
+│   ├── device.c
+│   ├── device_backend.c
+│   ├── device_config.c
+│   ├── device_manager.c
 │   ├── device_tree.c
 │   ├── dispatcher.c
 │   ├── event.c
 │   ├── executor.c
+│   ├── gpio_line.c
 │   ├── hardware_info.c
+│   ├── i2c_bus.c
 │   ├── job.c
 │   ├── led_control.c
 │   ├── main.c
 │   ├── network_monitor.c
+│   ├── oled.c
+│   ├── oled_font.c
 │   ├── parser.c
 │   ├── process_monitor.c
 │   ├── runtime_monitor.c
 │   ├── runtime_snapshot.c
+│   ├── serial_port.c
 │   ├── shell.c
 │   ├── shell_context.c
 │   ├── sig.c
 │   ├── sysfs_io.c
 │   ├── system_info.c
 │   ├── terminal.c
-│   └── thermal_monitor.c
+│   ├── uart_protocol.c
+│   ├── thermal_monitor.c
+│   └── watchdog_device.c
+├── examples
+│   └── stm32_uart_protocol
+│       ├── README.md
+│       ├── stm32_uart_protocol.c
+│       └── stm32_uart_protocol.h
+├── tools
+│   ├── gen_oled_font.py
+│   ├── gpio_probe.c
+│   ├── i2c_probe.c
+│   ├── oled_demo.c
+│   ├── serial_test.c
+│   └── watchdog_demo.c
 └── tests
     ├── integration
     │   ├── test_integration_main.c
     │   ├── test_shell_background.c
     │   ├── test_shell_basic.c
+    │   ├── test_shell_device.c
     │   ├── test_shell_input.c
     │   ├── test_shell_pipeline.c
     │   ├── test_shell_pty.c
@@ -1089,6 +1249,10 @@ Failed : 0
     ├── test_command.c
     ├── test_config.c
     ├── test_config.conf
+    ├── test_device.c
+    ├── test_device_backend.c
+    ├── test_device_config.c
+    ├── test_device_manager.c
     ├── test_device_tree.c
     ├── test_dispatcher.c
     ├── test_event.c
@@ -1106,10 +1270,13 @@ Failed : 0
     ├── test_process_monitor.c
     ├── test_runtime_monitor.c
     ├── test_runtime_snapshot.c
+    ├── test_serial_port.c
     ├── test_shell_context.c
     ├── test_sysfs_io.c
     ├── test_system_info.c
-    └── test_thermal_monitor.c
+    ├── test_stm32_uart_protocol.c
+    ├── test_thermal_monitor.c
+    └── test_uart_protocol.c
 ```
 
 ## 技术栈
@@ -1127,6 +1294,11 @@ Failed : 0
 - sysfs
 - Linux LED subsystem
 - Linux Runtime Monitoring
+- Device / DeviceOps / DeviceManager
+- GPIO Character Device
+- Linux i2c-dev
+- UART / termios
+- OLED Framebuffer
 - ARM64/aarch64
 - GNU Make
 - CMake
@@ -1146,7 +1318,6 @@ Failed : 0
 后续方向:
 
 ```
-Device Layer
 设备通信
 设备状态管理
 Event Driven Device IO
@@ -1200,7 +1371,14 @@ V1.7 Linux Runtime Manager           OK
  ├── Runtime Failure Isolation       OK
  └── ARM Runtime Release             OK
 
-V1.8 Board Device Runtime
+V1.8 Board Device Runtime            板端软件通过,外接设备待验
+ ├── Hardware Foundation             已有独立工具记录
+ ├── Device / DeviceOps / Manager     已实现
+ ├── Device Config / Command         已实现
+ ├── UART / I2C / OLED / GPIO / LED   已集成
+ ├── STM32 Sync UART Protocol        已实现
+ ├── Board Software / LED Validation PASS
+ └── STM32 / OLED / Button Validation 待接线验证
 V1.9 Event Driven Device IO
 V2.0 Embedded Linux Runtime
 V3.0 Edge Runtime / Edge Gateway

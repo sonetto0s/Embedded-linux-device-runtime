@@ -250,7 +250,7 @@ void test_execute_command_max_job_limit(void)
     if (!cmd)
     {
         job_destroy(&ctx.jobs);
-        ctx.running = 0;
+        shell_context_destroy(&ctx);
         return;
     }
 
@@ -260,7 +260,7 @@ void test_execute_command_max_job_limit(void)
     assert_no_children();
     command_free(cmd);
     job_destroy(&ctx.jobs);
-    ctx.running = 0;
+    shell_context_destroy(&ctx);
 }
 
 void test_execute_command_done_job_not_counted(void)
@@ -286,7 +286,7 @@ void test_execute_command_done_job_not_counted(void)
     if (!cmd)
     {
         job_destroy(&ctx.jobs);
-        ctx.running = 0;
+        shell_context_destroy(&ctx);
         return;
     }
 
@@ -295,7 +295,7 @@ void test_execute_command_done_job_not_counted(void)
     command_free(cmd);
 
     job_destroy(&ctx.jobs);
-    ctx.running = 0;
+    shell_context_destroy(&ctx);
     assert_no_children();
 }
 

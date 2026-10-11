@@ -1,5 +1,6 @@
 #include "builtin_table.h"
 #include "builtin.h"
+#include "cmd_device.h"
 #include <sys/types.h>
 #include <string.h>
 
@@ -19,6 +20,7 @@ static BuiltinEntry builtin_table[] = {
     {"fg", builtin_fg},
     {"bg", builtin_bg},
     {"reload", builtin_reload},
+    {"device", cmd_device},
 };
 
 BuiltinEntry *builtin_lookup(const char *name)

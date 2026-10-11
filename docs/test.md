@@ -2,7 +2,108 @@
 
 ## 本文件用以记录测试指令运行结果,验证当前版本效果
 
-## 当前版本 : V1.7 Linux Runtime Manager
+## 当前版本 : V1.8 Board Device Runtime
+
+原有Shell Core以及Runtime Manager测试记录保留在下面各节.
+
+下方原有Shell Core以及Runtime Manager结果保留历史记录,本轮V1.8结果单独记录.
+
+本次已经在Orange Pi 5 Plus完成Device Runtime软件检查以及Board LED集成检查,STM32、OLED以及外部Button实物验收仍待接线执行.
+
+## V1.8板端执行结果
+
+本轮目标环境:
+
+```text
+Orange Pi 5 Plus
+Ubuntu 20.04
+Linux 6.1.43
+aarch64
+```
+
+执行:
+
+```bash
+bash scripts/check_release.sh
+```
+
+当前结果:
+
+```text
+Release Check                      15 / 15 PASS
+Normal Unit Test                   146 Cases PASS
+Normal Integration Test            49 Cases,396 Assertions PASS
+Strict Unit Test                   146 Cases PASS
+Strict Integration Test            49 Cases,396 Assertions PASS
+ASan / LSan / UBSan                 PASS
+cppcheck                           PASS
+Runtime Smoke / Error Paths        PASS
+CMake Debug / Release              PASS
+ARM64 Native Runtime               PASS
+ARM Runtime Stability              PASS
+Package / Install                  PASS
+Valgrind                           PASS
+```
+
+Unit Assertion数量会随可读取的硬件字段变化,本轮不使用固定Assertion数量作为通过条件.
+
+额外板端Device Smoke:
+
+```text
+UART ttyS3 Open                    PASS
+无外设PING                         约1.002s后Timeout
+Timeout后Device状态                OPEN
+后续Shell命令                      PASS
+UART 20次Open / Close              PASS
+FD                                 5 -> 6 -> 5
+Open时Reload                       EBUSY
+I2C / GPIO未提权访问               EACCES,Shell继续运行
+Board LED读取                      PASS
+Board LED On / Off / Heartbeat     PASS
+Board LED 20次Open / On / Off / Close PASS
+```
+
+LED控制由用户sudo执行,随后通过SSH读取日志核对命令以及sysfs结果,结束后Trigger恢复为heartbeat.
+
+Runtime Stability本轮FD为5 -> 5,RSS为496KB -> 1380KB,增长884KB,在当前阈值内,未发现Zombie且正常退出.
+
+该PASS对应本轮短期压力检查,不代表多日或者长期稳定性验证.
+
+本轮没有启动Hardware Watchdog.
+
+## V1.8 Device测试
+
+当前新增Device、设备配置、DeviceManager、Backend以及UART Protocol测试.
+
+自动测试中的UART使用PTY模拟设备端,不会在自动测试中访问默认Orange Pi设备节点.
+
+主要检查:
+
+```text
+设备类型以及参数
+Device生命周期
+Disabled / CLOSED / OPEN / ERROR
+重复Open / Close
+Backend错误传播
+Context以及FD清理
+事务式设备配置
+打开设备拒绝Reload
+UART整体Deadline
+PING / STATUS / LED / HEARTBEAT
+错误以及过长Reply
+Shell device命令
+部署设备配置
+```
+
+本轮软件执行结果见上方V1.8板端结果,不会沿用历史111 / 46 Cases作为新测试数量.
+
+真实设备验收步骤:
+
+```text
+docs/device_validation.md
+```
+
+当前GPIO物理Button输入、OLED显示以及STM32通信尚未执行实物验收;Board LED已经执行本轮Device集成检查.
 
 ## 运行环境
 
@@ -865,7 +966,7 @@ Shell本身不异常退出
 make test
 ```
 
-当前源码注册:
+此前V1.7源码注册以及板端记录:
 
 ```
 Test Cases : 111
@@ -876,7 +977,7 @@ ProcessMonitor测试会根据当前系统Process数量执行部分排序Assertio
 
 因此Assertion数量可能随运行环境变化.
 
-Test Case数量保持:
+此前V1.7登记Test Case数量:
 
 ```
 111
@@ -890,7 +991,7 @@ Test Case数量保持:
 make integration
 ```
 
-当前源码注册:
+此前V1.7源码注册以及板端记录:
 
 ```
 Test Cases : 46
@@ -931,9 +1032,9 @@ monitor
 psinfo
 ```
 
-## 当前测试总量
+## 此前V1.7测试总量
 
-当前源码注册:
+此前V1.7源码注册以及板端记录:
 
 ```
 Unit Test:
@@ -1181,6 +1282,22 @@ sysfs_io
 led_control
 ```
 
+V1.8同时包含:
+
+```text
+device
+device_config
+device_manager
+device_backend
+uart_protocol
+cmd_device
+serial_port
+i2c_bus
+gpio_line
+oled
+oled_font
+```
+
 CTest同时执行:
 
 ```
@@ -1223,6 +1340,7 @@ make install DESTDIR=/tmp/minishell-root
 ```
 /tmp/minishell-root/opt/minishell/bin/minishell
 /tmp/minishell-root/opt/minishell/config/config.conf
+/tmp/minishell-root/opt/minishell/config/devices.conf
 ```
 
 权限:
@@ -1230,6 +1348,7 @@ make install DESTDIR=/tmp/minishell-root
 ```
 minishell    0755
 config.conf  0644
+devices.conf 0644
 ```
 
 离开源码目录:
@@ -1386,7 +1505,7 @@ fg
 Pipeline Job Control
 ```
 
-## 当前测试结论
+## 此前Shell Core以及Runtime Manager测试结论
 
 ```
 普通功能测试通过

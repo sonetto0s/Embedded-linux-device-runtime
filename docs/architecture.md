@@ -105,6 +105,139 @@ Linux LED subsystem
 Orange Pi
 ```
 
+## Device Runtime
+
+V1.8新增Device Runtime入口:
+
+```text
+Builtin Table
+ |
+device
+ |
+cmd_device
+ |
+ShellContext.devices
+ |
+DeviceManager
+ |
+Device / DeviceOps
+ |
+ |----------------|----------------|--------------|--------------|
+UART             I2C             OLED           GPIO            LED
+ |                |                |              |              |
+serial_port     i2c_bus      oled / oled_font   gpio_line     led_control
+ |                |                |              |              |
+TTY             i2c-dev          i2c_bus       gpiochip        sysfs_io
+```
+
+详细设备接口以及命令见docs/device_layer.md.
+
+## Device初始化流程
+
+```text
+shell_context_init
+ |
+device_manager_init
+ |
+解析稳定devices_file
+ |
+device_config_load
+ |
+校验全部Section以及参数
+ |
+创建Backend Context
+ |
+登记Device
+ |
+CLOSED / DISABLED
+```
+
+初始化不执行Hardware Open.
+
+缺失设备配置或者设备节点不会使Shell初始化失败.
+
+## Device访问流程
+
+```text
+device Command
+ |
+检查参数以及Device Type
+ |
+查找Device
+ |
+检查是否已经显式Open
+ |
+DeviceOps read / write / control
+ |
+Backend
+ |
+保存状态以及last_errno
+ |
+返回Command状态
+```
+
+正常OPEN设备重复open不会重复申请资源.
+
+仍然opened但进入ERROR的设备需要先close再open.
+
+设备错误不会结束Shell或者关闭其他Device.
+
+read、write以及control不会自动打开CLOSED设备,先执行device open.
+
+## Device Reload流程
+
+```text
+device reload
+ |
+检查现有Device是否opened
+ |
+已打开则拒绝Reload
+ |
+解析temporary DeviceConfigList
+ |
+创建temporary DeviceManager
+ |
+全部准备成功
+ |
+释放原设备集合
+ |
+替换新设备集合
+```
+
+解析或者Backend准备失败时保留旧设备集合.
+
+Reload只使用启动时保存的devices_file,不随cd改变.
+
+## UART协议流程
+
+```text
+PING / STATUS / LED / HEARTBEAT
+ |
+清除旧UART输入
+ |
+Request + LF
+ |
+整体Deadline
+ |
+接收LF / CRLF行
+ |
+检查对应Reply
+ |
+输出结果
+```
+
+当前UART一问一答使用1000ms整体Timeout.
+
+高级协议请求以前需要显式device open,该Timeout不包含打开时间.
+
+输入flush只清除已经到达的数据,没有Transaction ID时不能保证隔离未来迟到回复.
+
+超时以后先close并恢复STM32通信状态,再open.LED结果未确认时先STATUS检查,不自动重发写操作.
+
+Timeout以及错误Reply正常返回命令失败,不会将一次通信超时解释为Shell退出.
+
+当前不启动线程、epoll或者自动Heartbeat调度.
+
 ## 输入流程
 
 MiniShell不使用一次getline调用代表一整条命令.
@@ -741,15 +874,17 @@ printf
 Shell退出时:
 
 ```
+shell_context_destroy
+ |
 job_shutdown
+ |
+device_manager_destroy
  |
 signal_shutdown
  |
 event_shut
  |
 terminal_shutdown
- |
-shell_context_destroy
 ```
 
 避免Signal Handler仍然使用Event pipe时另一边已经关闭FD.
@@ -1161,6 +1296,8 @@ Shell:
 ```
 Shell退出
  |
+shell_context_destroy
+ |
 job_shutdown
  |
 结束Process Group
@@ -1169,14 +1306,30 @@ job_shutdown
  |
 job_destroy
  |
+device_manager_destroy
+ |
 signal_shutdown
  |
 event_shut
  |
 terminal_shutdown
- |
-shell_context_destroy
 ```
+
+Device:
+
+```text
+Device登记
+ |
+显式Open
+ |
+read / write / control
+ |
+close
+ |
+destroy Backend Context
+```
+
+设备FD继续使用CLOEXEC,避免被外部命令exec继承.
 
 Sysfs:
 

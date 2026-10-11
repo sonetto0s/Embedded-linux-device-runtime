@@ -57,7 +57,7 @@ git diff --cached --check
 BRANCH="$(git branch --show-current)"
 
 case "$BRANCH" in
-    feature/v1.7-runtime-manager|main)
+    feature/v1.8-device-layer|main)
         ;;
     *)
         echo "Unexpected branch: $BRANCH"
@@ -65,8 +65,8 @@ case "$BRANCH" in
         ;;
 esac
 
-if ! grep -Eq 'VERSION[[:space:]]+1\.7([[:space:]]|$)' CMakeLists.txt; then
-    echo "CMake project version is not V1.7"
+if ! grep -Eq 'VERSION[[:space:]]+1\.8([[:space:]]|$)' CMakeLists.txt; then
+    echo "CMake project version is not V1.8"
     exit 1
 fi
 
@@ -103,6 +103,16 @@ require_file src/process_monitor.c
 require_file src/network_monitor.c
 require_file src/thermal_monitor.c
 require_file src/runtime_snapshot.c
+require_file include/device.h
+require_file include/device_config.h
+require_file include/device_manager.h
+require_file include/device_backend.h
+require_file include/uart_protocol.h
+require_file src/device.c
+require_file src/device_config.c
+require_file src/device_manager.c
+require_file src/device_backend.c
+require_file src/uart_protocol.c
 
 pass "Runtime architecture"
 
@@ -269,6 +279,7 @@ make package
 
 require_file dist/native/bin/minishell
 require_file dist/native/config/config.conf
+require_file dist/native/config/devices.conf
 
 PACKAGE_OUTPUT="$(
     printf 'monitor\nexit\n' |
@@ -290,6 +301,7 @@ make install DESTDIR="$INSTALL_ROOT"
 
 require_file "$INSTALL_ROOT/opt/minishell/bin/minishell"
 require_file "$INSTALL_ROOT/opt/minishell/config/config.conf"
+require_file "$INSTALL_ROOT/opt/minishell/config/devices.conf"
 
 INSTALL_OUTPUT="$(
     printf 'monitor\nexit\n' |
@@ -302,6 +314,11 @@ make uninstall DESTDIR="$INSTALL_ROOT"
 
 if [ -e "$INSTALL_ROOT/opt/minishell/bin/minishell" ]; then
     echo "Installed binary still exists after uninstall"
+    exit 1
+fi
+
+if [ -e "$INSTALL_ROOT/opt/minishell/config/devices.conf" ]; then
+    echo "Device config still exists after uninstall"
     exit 1
 fi
 
@@ -332,7 +349,7 @@ git diff --stat
 
 echo
 echo "================================================"
-echo " V1.7 RELEASE GATE PASSED"
+echo " V1.8 RELEASE GATE PASSED"
 echo " Checks passed: $PASS_COUNT"
 echo " Host: $(uname -m)"
 echo " Branch: $(git branch --show-current)"

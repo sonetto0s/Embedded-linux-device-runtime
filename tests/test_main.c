@@ -39,6 +39,8 @@ void test_execute_pipeline_exec_failure_reaps_children(void);
 void test_execute_pipeline_limit_cleanup(void);
 void test_execute_command_max_job_limit(void);
 void test_execute_command_done_job_not_counted(void);
+void test_execute_single_closes_devices_before_redirect(void);
+void test_execute_pipeline_closes_devices_before_redirect(void);
 void test_runtime_monitor_collect_null(void);
 void test_runtime_monitor_collect(void);
 void test_process_monitor_invalid(void);
@@ -112,6 +114,39 @@ void test_sysfs_io_text(void);
 void test_sysfs_io_number(void);
 void test_led_control_invalid_name(void);
 void test_led_control_invalid_trigger(void);
+void test_device_lazy_lifecycle(void);
+void test_device_disabled_no_side_effect(void);
+void test_device_transient_errors_recover(void);
+void test_device_error_can_release_and_reopen(void);
+void test_device_unsupported_operation(void);
+void test_device_invalid_arguments(void);
+void test_device_config_all_types(void);
+void test_device_config_rejects_and_preserves(void);
+void test_device_config_limits(void);
+void test_device_config_file_errors(void);
+void test_device_manager_registration_limits(void);
+void test_device_manager_duplicate_name(void);
+void test_device_manager_close_all(void);
+void test_device_manager_load_transaction(void);
+void test_device_backend_missing_hardware_no_leak(void);
+void test_device_backend_rejects_wrong_node(void);
+void test_serial_port_raw_binary_pty(void);
+void test_serial_port_wait_flush_pty(void);
+void test_serial_port_lifecycle_pty(void);
+void test_serial_port_write_deadline_pty(void);
+void test_serial_port_peer_disconnect_pty(void);
+void test_uart_protocol_commands_pty(void);
+void test_uart_protocol_reply_validation_pty(void);
+void test_uart_protocol_deadline_pty(void);
+void test_uart_protocol_invalid_requests(void);
+void test_uart_protocol_mock_roundtrip(void);
+void test_uart_protocol_mock_validation(void);
+void test_uart_protocol_mock_failures(void);
+void test_uart_protocol_mock_deadline(void);
+void test_stm32_protocol_commands(void);
+void test_stm32_protocol_input_errors(void);
+void test_stm32_protocol_fragmented_feed(void);
+void test_stm32_protocol_overflow_recovers(void);
 
 int main(void)
 {
@@ -179,6 +214,8 @@ int main(void)
         {"execute_pipeline_limit_cleanup", test_execute_pipeline_limit_cleanup},
         {"execute_command_max_job_limit", test_execute_command_max_job_limit},
         {"execute_command_done_job_not_counted", test_execute_command_done_job_not_counted},
+        {"execute_single_closes_devices_before_redirect", test_execute_single_closes_devices_before_redirect},
+        {"execute_pipeline_closes_devices_before_redirect", test_execute_pipeline_closes_devices_before_redirect},
         {"command_init", test_command_init},
         {"shell_context_init", test_shell_context_init},
         {"shell_context_config_env", test_shell_context_config_env},
@@ -228,6 +265,39 @@ int main(void)
         {"sysfs_io_number", test_sysfs_io_number},
         {"led_control_invalid_name", test_led_control_invalid_name},
         {"led_control_invalid_trigger", test_led_control_invalid_trigger},
+        {"device_lazy_lifecycle", test_device_lazy_lifecycle},
+        {"device_disabled_no_side_effect", test_device_disabled_no_side_effect},
+        {"device_transient_errors_recover", test_device_transient_errors_recover},
+        {"device_error_can_release_and_reopen", test_device_error_can_release_and_reopen},
+        {"device_unsupported_operation", test_device_unsupported_operation},
+        {"device_invalid_arguments", test_device_invalid_arguments},
+        {"device_config_all_types", test_device_config_all_types},
+        {"device_config_rejects_and_preserves", test_device_config_rejects_and_preserves},
+        {"device_config_limits", test_device_config_limits},
+        {"device_config_file_errors", test_device_config_file_errors},
+        {"device_manager_registration_limits", test_device_manager_registration_limits},
+        {"device_manager_duplicate_name", test_device_manager_duplicate_name},
+        {"device_manager_close_all", test_device_manager_close_all},
+        {"device_manager_load_transaction", test_device_manager_load_transaction},
+        {"device_backend_missing_hardware_no_leak", test_device_backend_missing_hardware_no_leak},
+        {"device_backend_rejects_wrong_node", test_device_backend_rejects_wrong_node},
+        {"serial_port_raw_binary_pty", test_serial_port_raw_binary_pty},
+        {"serial_port_wait_flush_pty", test_serial_port_wait_flush_pty},
+        {"serial_port_lifecycle_pty", test_serial_port_lifecycle_pty},
+        {"serial_port_write_deadline_pty", test_serial_port_write_deadline_pty},
+        {"serial_port_peer_disconnect_pty", test_serial_port_peer_disconnect_pty},
+        {"uart_protocol_commands_pty", test_uart_protocol_commands_pty},
+        {"uart_protocol_reply_validation_pty", test_uart_protocol_reply_validation_pty},
+        {"uart_protocol_deadline_pty", test_uart_protocol_deadline_pty},
+        {"uart_protocol_invalid_requests", test_uart_protocol_invalid_requests},
+        {"uart_protocol_mock_roundtrip", test_uart_protocol_mock_roundtrip},
+        {"uart_protocol_mock_validation", test_uart_protocol_mock_validation},
+        {"uart_protocol_mock_failures", test_uart_protocol_mock_failures},
+        {"uart_protocol_mock_deadline", test_uart_protocol_mock_deadline},
+        {"stm32_protocol_commands", test_stm32_protocol_commands},
+        {"stm32_protocol_input_errors", test_stm32_protocol_input_errors},
+        {"stm32_protocol_fragmented_feed", test_stm32_protocol_fragmented_feed},
+        {"stm32_protocol_overflow_recovers", test_stm32_protocol_overflow_recovers},
     };
 
     printf("======= MiniShell Test =======\n");

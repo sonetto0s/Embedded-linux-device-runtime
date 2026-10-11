@@ -2,6 +2,7 @@
 #define SHELL_CONTEXT_H
 
 #include "config.h"
+#include "device_manager.h"
 #include "job.h"
 #include <stddef.h>
 
@@ -15,6 +16,8 @@ typedef struct ShellContext {
     MiniShellConfig config;
 
     char config_file[SHELL_CONFIG_PATH_SIZE];
+    DeviceManager devices;
+    char devices_file[SHELL_CONFIG_PATH_SIZE];
 
     char input_buffer[SHELL_INPUT_SIZE];
     size_t input_length;

@@ -2,6 +2,12 @@
 
 ## 本文件用以记录Orange Pi 5 Plus GPIO接口Bring-up以及当前GPIO访问层实现情况
 
+以下接线、构建以及PASS来自此前GPIO Hardware Foundation阶段,保留原始记录.
+
+本次V1.8新增Button Device集成,尚未在真实开发板重新验证.
+
+当前Device Runtime说明见docs/device_layer.md,实物验收步骤见docs/device_validation.md.
+
 ## 当前GPIO环境
 
 当前Orange Pi 5 Plus提供:
@@ -472,7 +478,7 @@ Target.
 
 GPIO Probe保持为独立Executable.
 
-当前没有将:
+Foundation阶段没有将:
 
 ```text
 src/gpio_line.c
@@ -484,9 +490,11 @@ src/gpio_line.c
 minishell_core
 ```
 
-当前Runtime Core不会直接依赖GPIO.
+当时Runtime Core不会直接依赖GPIO.
 
-GPIO Runtime Device集成留到后续Device Layer阶段.
+本次Device Backend复用gpio_line,通过DeviceManager管理Button配置以及生命周期.
+
+以下CMake以及CTest结果保留Foundation阶段记录,不代表新集成已经完成板端复验.
 
 当前CMake验证:
 
@@ -528,7 +536,7 @@ minishell_integration_tests  PASS
 0 tests failed
 ```
 
-## 当前GPIO架构
+## Foundation阶段GPIO架构
 
 当前GPIO部分结构:
 
@@ -546,7 +554,7 @@ RK3588 GPIO
 
 当前gpio_line属于底层GPIO访问基础.
 
-当前没有加入:
+Foundation阶段没有加入:
 
 ```text
 DeviceManager
@@ -557,9 +565,11 @@ GPIO Builtin
 GPIO Command
 ```
 
-相关设备抽象留到后续Device Layer统一实现.
+本次已经通过Device、DeviceOps以及DeviceManager加入GPIO Device,使用device read读取Button.
 
-## 当前最终状态
+GPIO Edge以及EventLoop继续留到V1.9.
+
+## Foundation阶段最终状态
 
 ```text
 GPIO Controller确认              PASS

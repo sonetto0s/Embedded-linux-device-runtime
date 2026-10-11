@@ -21,23 +21,21 @@ void i2c_bus_init(I2cBus *bus)
 
 int i2c_bus_open(I2cBus *bus, const char *device_path, uint8_t address)
 {
-    if (!bus || !device_path || address > 0x7F)
+    if (!bus || !device_path || !*device_path || address > 0x7F)
     {
         errno = EINVAL;
         return -1;
     }
 
-    int fd = open(device_path, O_RDWR);
-    if (fd < 0)
+    if (bus->fd >= 0)
     {
+        errno = EBUSY;
         return -1;
     }
 
-    if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0)
+    int fd = open(device_path, O_RDWR | O_CLOEXEC);
+    if (fd < 0)
     {
-        int saved_errno = errno;
-        close(fd);
-        errno = saved_errno;
         return -1;
     }
 

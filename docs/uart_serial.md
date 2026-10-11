@@ -2,6 +2,12 @@
 
 ## 本文件用以记录Orange Pi 5 Plus UART3接口Bring-up以及当前SerialPort访问层实现情况
 
+以下UART回环以及USB-TTL双向PASS来自此前UART Hardware Foundation阶段,保留原始记录.
+
+本次V1.8新增UART Device以及STM32同步协议,尚未完成真实STM32通信验收.
+
+当前Device Runtime说明见docs/device_layer.md,实物验收步骤见docs/device_validation.md.
+
 ## 当前UART环境
 
 当前Orange Pi 5 Plus通过40Pin使用:
@@ -630,7 +636,9 @@ Windows通过USB-TTL发送数据以后Orange Pi可以正常接收.
 
 当前serial_test保持为独立Hardware Bring-up工具.
 
-当前没有直接加入MiniShell Runtime Core.
+Foundation阶段serial_test没有直接加入MiniShell Runtime Core.
+
+本次UART Backend复用SerialPort,serial_test仍然保持独立Bring-up工具.
 
 ## Build集成
 
@@ -699,7 +707,7 @@ tools/serial_test.c
 src/serial_port.c
 ```
 
-当前没有将:
+Foundation阶段没有将:
 
 ```text
 src/serial_port.c
@@ -711,9 +719,9 @@ src/serial_port.c
 MINISHELL_CORE_SOURCES
 ```
 
-当前UART仍然保持为V1.8 Hardware Bring-up以及Serial Foundation.
+以上属于当时V1.8 Hardware Bring-up以及Serial Foundation构建记录.
 
-正式Device Runtime集成留到后续Device Layer阶段.
+本次serial_port已经由UART Device Backend复用,以下旧构建记录不代表新集成板端复验.
 
 当前CMake配置:
 
@@ -747,7 +755,7 @@ cd build/cmake
 ctest --output-on-failure
 ```
 
-## 当前UART架构
+## Foundation阶段UART架构
 
 当前UART部分结构:
 
@@ -771,7 +779,7 @@ External UART Device
 
 当前serial_port属于Linux UART基础访问层.
 
-当前没有加入:
+Foundation阶段没有加入:
 
 ```text
 STM32 Protocol
@@ -787,8 +795,10 @@ epoll
 UART Async Event
 ```
 
-这些内容不会提前加入Phase 3.
+这些内容没有加入当时Phase 3.
 
-STM32正式设备通信留到后续Phase.
+本次已经加入DeviceManager以及PING、STATUS、LED、HEARTBEAT同步协议.
+
+此前Windows与Orange Pi双向通信PASS不代表STM32协议已经在实物上通过.
 
 Event Driven UART留到V1.9.

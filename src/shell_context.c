@@ -1,6 +1,7 @@
 #include "shell_context.h"
 #include "error.h"
 #include "log.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -121,6 +122,88 @@ static int shell_context_set_config_path(ShellContext *ctx)
     return -1;
 }
 
+static int shell_context_devices_path(ShellContext *ctx, const char *directory,
+                                      const char *relative, int must_exist)
+{
+    int written = snprintf(ctx->devices_file, sizeof(ctx->devices_file),
+                           "%s/%s", directory, relative);
+
+    if (written < 0 || (size_t)written >= sizeof(ctx->devices_file))
+    {
+        ctx->devices_file[0] = '\0';
+        return -1;
+    }
+
+    if (must_exist && access(ctx->devices_file, F_OK) < 0)
+    {
+        ctx->devices_file[0] = '\0';
+        return -1;
+    }
+
+    return 0;
+}
+
+static int shell_context_set_devices_path(ShellContext *ctx)
+{
+    const char *environment = getenv("MINISHELL_DEVICES_CONFIG");
+    char directory[SHELL_CONFIG_PATH_SIZE];
+
+    if (environment && *environment)
+    {
+        if (environment[0] == '/')
+        {
+            int written = snprintf(ctx->devices_file, sizeof(ctx->devices_file),
+                                   "%s", environment);
+
+            if (written >= 0 && (size_t)written < sizeof(ctx->devices_file))
+            {
+                return 0;
+            }
+
+            ctx->devices_file[0] = '\0';
+            return -1;
+        }
+
+        return getcwd(directory, sizeof(directory)) ?
+               shell_context_devices_path(ctx, directory, environment, 0) : -1;
+    }
+
+    ssize_t length = readlink("/proc/self/exe", directory, sizeof(directory) - 1);
+
+    if (length > 0 && (size_t)length < sizeof(directory) - 1)
+    {
+        directory[length] = '\0';
+        char *slash = strrchr(directory, '/');
+
+        if (slash)
+        {
+            if (slash == directory)
+            {
+                slash[1] = '\0';
+            }
+            else
+            {
+                *slash = '\0';
+            }
+
+            if (shell_context_devices_path(ctx, directory, "../config/devices.conf", 1) == 0 ||
+                shell_context_devices_path(ctx, directory, "config/devices.conf", 1) == 0)
+            {
+                return 0;
+            }
+        }
+    }
+
+    if (getcwd(directory, sizeof(directory)) &&
+        shell_context_devices_path(ctx, directory, "config/devices.conf", 1) == 0)
+    {
+        return 0;
+    }
+
+    ctx->devices_file[0] = '\0';
+    return -1;
+}
+
 void shell_context_init(ShellContext *ctx)
 {
     if (!ctx)
@@ -133,6 +216,7 @@ void shell_context_init(ShellContext *ctx)
 
     jobmanager_init(&ctx->jobs);
     config_init(&ctx->config);
+    device_manager_init(&ctx->devices);
 
     if (shell_context_set_config_path(ctx) == 0)
     {
@@ -150,6 +234,18 @@ void shell_context_init(ShellContext *ctx)
 
     log_setlevel(ctx->config.debug ? LOG_DEBUG : LOG_INFO);
 
+    if (shell_context_set_devices_path(ctx) == 0)
+    {
+        if (device_manager_load(&ctx->devices, ctx->devices_file) < 0)
+        {
+            log_error("failed load devices config: %s: %s", ctx->devices_file, strerror(errno));
+        }
+    }
+    else
+    {
+        log_info("devices config file not found");
+    }
+
     ctx->input_length = 0;
     ctx->input_discarding = 0;
     ctx->input_buffer[0] = '\0';
@@ -165,6 +261,7 @@ void shell_context_destroy(ShellContext *ctx)
 
     ctx->running = 0;
     job_shutdown(&ctx->jobs);
+    device_manager_destroy(&ctx->devices);
 }
 
 
