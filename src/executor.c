@@ -122,7 +122,8 @@ static int startup_gate_release(int fd, int count)
     return 0;
 }
 
-static void child_prepare_before_gate(int gate_read, int gate_write, pid_t pgid)
+static void child_prepare_before_gate(int gate_read, int gate_write, pid_t pgid,
+                                      ShellContext *ctx)
 {
     close(gate_write);
 
@@ -132,6 +133,9 @@ static void child_prepare_before_gate(int gate_read, int gate_write, pid_t pgid)
         _exit(1);
 
     event_close_in_child();
+
+    if (device_manager_close_all(&ctx->devices) < 0)
+        _exit(1);
 
     if (startup_gate_wait(gate_read) < 0)
         _exit(1);
@@ -401,7 +405,8 @@ int execute_single(Command *com, ShellContext *ctx)
     if (pid == 0) {
         child_prepare_before_gate(gate[0],
                                   gate[1],
-                                  0);
+                                  0,
+                                  ctx);
 
         if (setredirect(com) != MiniShell_OK)
             _exit(1);
@@ -599,7 +604,8 @@ int execute_pipeline(Command *com, ShellContext *ctx)
 
             child_prepare_before_gate(gate[0],
                                       gate[1],
-                                      child_pgid);
+                                      child_pgid,
+                                      ctx);
 
             if (pipe_fd >= 0 &&
                 redirect_fd(pipe_fd,

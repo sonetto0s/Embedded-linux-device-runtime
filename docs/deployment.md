@@ -11,7 +11,8 @@
 ├── bin/
 │   └── minishell
 └── config/
-    └── config.conf
+    ├── config.conf
+    └── devices.conf
 ```
 
 其中:
@@ -27,6 +28,16 @@ config/config.conf
 ```
 
 为运行时配置文件.
+
+设备配置文件:
+
+```text
+config/devices.conf
+```
+
+用于登记UART、I2C、OLED、GPIO以及LED Device.
+
+默认配置来自此前Orange Pi 5 Plus接线记录,复制到目标板以后仍然需要检查实际路径以及引脚.
 
 MiniShell在部署环境下会根据当前可执行文件位置查找配置文件.
 
@@ -64,6 +75,7 @@ sudo make install
 ```
 /opt/minishell/bin/minishell
 /opt/minishell/config/config.conf
+/opt/minishell/config/devices.conf
 ```
 
 程序权限:
@@ -91,7 +103,8 @@ sudo make install PREFIX=/opt/myminishell
 ├── bin/
 │   └── minishell
 └── config/
-    └── config.conf
+    ├── config.conf
+    └── devices.conf
 ```
 
 ## DESTDIR暂存部署
@@ -111,6 +124,7 @@ make install DESTDIR=/tmp/minishell-root
 ```
 /tmp/minishell-root/opt/minishell/bin/minishell
 /tmp/minishell-root/opt/minishell/config/config.conf
+/tmp/minishell-root/opt/minishell/config/devices.conf
 ```
 
 这里:
@@ -168,6 +182,7 @@ uninstall只删除MiniShell自身安装的:
 ```
 bin/minishell
 config/config.conf
+config/devices.conf
 ```
 
 以及删除完成后已经为空的MiniShell目录.
@@ -191,7 +206,8 @@ dist/native/
 ├── bin/
 │   └── minishell
 └── config/
-    └── config.conf
+    ├── config.conf
+    └── devices.conf
 ```
 
 ARM64交叉编译部署包:
@@ -207,7 +223,8 @@ dist/arm64/
 ├── bin/
 │   └── minishell
 └── config/
-    └── config.conf
+    ├── config.conf
+    └── devices.conf
 ```
 
 package主要用于生成可以直接复制到目标设备的程序目录.
@@ -248,6 +265,7 @@ sudo cmake --install build/cmake --prefix /opt/minishell
 ```
 /opt/minishell/bin/minishell
 /opt/minishell/config/config.conf
+/opt/minishell/config/devices.conf
 ```
 
 如果需要安装进临时rootfs:
@@ -262,6 +280,7 @@ cmake --install build/cmake --prefix /opt/minishell
 ```
 /tmp/minishell-root/opt/minishell/bin/minishell
 /tmp/minishell-root/opt/minishell/config/config.conf
+/tmp/minishell-root/opt/minishell/config/devices.conf
 ```
 
 因此当前Makefile与CMake的最终部署结构保持一致.
@@ -305,9 +324,40 @@ cd /tmp
 /opt/minishell/config/config.conf
 ```
 
+## 设备配置查找
+
+```text
+MINISHELL_DEVICES_CONFIG
+ |
+<exe>/../config/devices.conf
+ |
+<exe>/config/devices.conf
+ |
+<cwd>/config/devices.conf
+```
+
+设备配置与Shell配置分别保存稳定路径.
+
+```text
+cd /tmp
+device reload
+```
+
+不会改变设备配置来源.
+
+显式设置MINISHELL_DEVICES_CONFIG时优先使用指定文件,不会偷偷改用另一个设备配置.
+
+缺失或者非法设备配置不会使Shell启动失败,device list可以查看实际加载结果.
+
+已打开设备时拒绝device reload,需要先device close.
+
 ## 硬件权限
 
 当前已经包含Device Tree、Hardware Info、Runtime Monitor以及sysfs硬件访问能力.
+
+V1.8同时需要对应UART、I2C以及GPIO字符设备访问权限.
+
+DeviceManager只登记配置,启动不会为了测试权限自动打开全部硬件.
 
 只读接口通常可以由普通用户直接读取.
 
@@ -361,6 +411,7 @@ find /tmp/minishell-root/opt/minishell -maxdepth 2 -type f -print
 ```
 /tmp/minishell-root/opt/minishell/bin/minishell
 /tmp/minishell-root/opt/minishell/config/config.conf
+/tmp/minishell-root/opt/minishell/config/devices.conf
 ```
 
 可以离开源码目录进行运行验证:
@@ -370,6 +421,15 @@ cd /tmp
 
 /tmp/minishell-root/opt/minishell/bin/minishell
 ```
+
+进入Shell后可以先执行:
+
+```text
+device list
+device info stm32
+```
+
+这里只检查安装配置以及设备登记,不把成功列出设备解释为物理通信PASS.
 
 
 ## 当前部署能力

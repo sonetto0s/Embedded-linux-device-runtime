@@ -49,6 +49,7 @@ CPPCHECK_FLAGS := \
 SRC_DIR := src
 TEST_DIR := tests
 INTEGRATION_DIR := $(TEST_DIR)/integration
+TOOLS_DIR := tools
 COMMON_DIR := common
 CONFIG_DIR := config
 
@@ -65,6 +66,33 @@ TARGET := $(BUILD_DIR)/minishell
 RUN_TARGET := shell
 TEST_TARGET := $(BUILD_DIR)/minishell_tests
 INTEGRATION_TARGET := $(BUILD_DIR)/minishell_integration_tests
+GPIO_PROBE_TARGET := $(BUILD_DIR)/gpio_probe
+I2C_PROBE_TARGET := $(BUILD_DIR)/i2c_probe
+OLED_DEMO_TARGET := $(BUILD_DIR)/oled_demo
+SERIAL_TEST_TARGET := $(BUILD_DIR)/serial_test
+WATCHDOG_DEMO_TARGET := $(BUILD_DIR)/watchdog_demo
+
+GPIO_PROBE_SRC := \
+	$(TOOLS_DIR)/gpio_probe.c \
+	$(SRC_DIR)/gpio_line.c
+
+I2C_PROBE_SRC := \
+	$(TOOLS_DIR)/i2c_probe.c \
+	$(SRC_DIR)/i2c_bus.c
+
+OLED_DEMO_SRC := \
+	$(TOOLS_DIR)/oled_demo.c \
+	$(SRC_DIR)/i2c_bus.c \
+	$(SRC_DIR)/oled.c \
+	$(SRC_DIR)/oled_font.c
+
+SERIAL_TEST_SRC := \
+	$(TOOLS_DIR)/serial_test.c \
+	$(SRC_DIR)/serial_port.c
+
+WATCHDOG_DEMO_SRC := \
+	$(TOOLS_DIR)/watchdog_demo.c \
+	$(SRC_DIR)/watchdog_device.c
 
 APP_SRC := \
 	$(SRC_DIR)/main.c \
@@ -91,6 +119,17 @@ APP_SRC := \
 	$(SRC_DIR)/sysfs_io.c \
 	$(SRC_DIR)/led_control.c \
 	$(SRC_DIR)/terminal.c \
+	$(SRC_DIR)/device.c \
+	$(SRC_DIR)/device_config.c \
+	$(SRC_DIR)/device_manager.c \
+	$(SRC_DIR)/device_backend.c \
+	$(SRC_DIR)/uart_protocol.c \
+	$(SRC_DIR)/cmd_device.c \
+	$(SRC_DIR)/serial_port.c \
+	$(SRC_DIR)/gpio_line.c \
+	$(SRC_DIR)/i2c_bus.c \
+	$(SRC_DIR)/oled.c \
+	$(SRC_DIR)/oled_font.c \
 	$(COMMON_DIR)/utils.c \
 	$(COMMON_DIR)/log.c \
 	$(COMMON_DIR)/error.c \
@@ -117,9 +156,19 @@ TEST_SRC := \
 	$(TEST_DIR)/test_led_control.c \
 	$(TEST_DIR)/test_dispatcher.c \
 	$(TEST_DIR)/test_executor.c \
+	$(TEST_DIR)/test_device_executor.c \
 	$(TEST_DIR)/test_job.c \
 	$(TEST_DIR)/test_job_control.c \
 	$(TEST_DIR)/test_command.c \
+	$(TEST_DIR)/test_device.c \
+	$(TEST_DIR)/test_device_config.c \
+	$(TEST_DIR)/test_device_manager.c \
+	$(TEST_DIR)/test_device_backend.c \
+	$(TEST_DIR)/test_serial_port.c \
+	$(TEST_DIR)/test_uart_protocol.c \
+	$(TEST_DIR)/test_uart_protocol_mock.c \
+	$(TEST_DIR)/test_stm32_uart_protocol.c \
+	examples/stm32_uart_protocol/stm32_uart_protocol.c \
 	$(SRC_DIR)/shell.c \
 	$(SRC_DIR)/parser.c \
 	$(SRC_DIR)/executor.c \
@@ -143,6 +192,17 @@ TEST_SRC := \
 	$(SRC_DIR)/network_monitor.c \
 	$(SRC_DIR)/thermal_monitor.c \
 	$(SRC_DIR)/terminal.c \
+	$(SRC_DIR)/device.c \
+	$(SRC_DIR)/device_config.c \
+	$(SRC_DIR)/device_manager.c \
+	$(SRC_DIR)/device_backend.c \
+	$(SRC_DIR)/uart_protocol.c \
+	$(SRC_DIR)/cmd_device.c \
+	$(SRC_DIR)/serial_port.c \
+	$(SRC_DIR)/gpio_line.c \
+	$(SRC_DIR)/i2c_bus.c \
+	$(SRC_DIR)/oled.c \
+	$(SRC_DIR)/oled_font.c \
 	$(COMMON_DIR)/utils.c \
 	$(COMMON_DIR)/log.c \
 	$(COMMON_DIR)/error.c \
@@ -158,6 +218,7 @@ INTEGRATION_SRC := \
 	$(INTEGRATION_DIR)/test_shell_background.c \
 	$(INTEGRATION_DIR)/test_shell_pty.c \
 	$(INTEGRATION_DIR)/test_shell_input.c \
+	$(INTEGRATION_DIR)/test_shell_device.c \
 	$(TEST_DIR)/test_framework.c
 
 APP_CPPFLAGS := \
@@ -174,11 +235,21 @@ TEST_CPPFLAGS := \
 APP_OBJ := $(APP_SRC:%.c=$(BUILD_DIR)/%.o)
 TEST_OBJ := $(TEST_SRC:%.c=$(BUILD_DIR)/%.o)
 INTEGRATION_OBJ := $(INTEGRATION_SRC:%.c=$(BUILD_DIR)/%.o)
+GPIO_PROBE_OBJ := $(GPIO_PROBE_SRC:%.c=$(BUILD_DIR)/%.o)
+I2C_PROBE_OBJ := $(I2C_PROBE_SRC:%.c=$(BUILD_DIR)/%.o)
+OLED_DEMO_OBJ := $(OLED_DEMO_SRC:%.c=$(BUILD_DIR)/%.o)
+SERIAL_TEST_OBJ := $(SERIAL_TEST_SRC:%.c=$(BUILD_DIR)/%.o)
+WATCHDOG_DEMO_OBJ := $(WATCHDOG_DEMO_SRC:%.c=$(BUILD_DIR)/%.o)
 
 DEPS := \
 	$(APP_OBJ:.o=.d) \
 	$(TEST_OBJ:.o=.d) \
-	$(INTEGRATION_OBJ:.o=.d)
+	$(INTEGRATION_OBJ:.o=.d) \
+	$(GPIO_PROBE_OBJ:.o=.d) \
+	$(I2C_PROBE_OBJ:.o=.d) \
+	$(OLED_DEMO_OBJ:.o=.d) \
+	$(SERIAL_TEST_OBJ:.o=.d) \
+	$(WATCHDOG_DEMO_OBJ:.o=.d)
 
 .PHONY: \
 	all \
@@ -186,6 +257,12 @@ DEPS := \
 	binary \
 	shell \
 	run \
+	gpio-probe \
+	i2c-probe \
+	oled-demo \
+	oled-font \
+	serial-test \
+	watchdog-demo \
 	native \
 	arm64 \
 	package \
@@ -220,6 +297,19 @@ shell: $(TARGET)
 run: shell
 	./$(RUN_TARGET)
 
+gpio-probe: $(GPIO_PROBE_TARGET)
+
+i2c-probe: $(I2C_PROBE_TARGET)
+
+oled-demo: $(OLED_DEMO_TARGET)
+
+oled-font:
+	python3 $(TOOLS_DIR)/gen_oled_font.py
+
+serial-test: $(SERIAL_TEST_TARGET)
+
+watchdog-demo: $(WATCHDOG_DEMO_TARGET)
+
 native: shell
 
 arm64:
@@ -252,6 +342,7 @@ package-files: $(TARGET)
 	@install -d "$(DEPLOY_DIR)/config"
 	@install -m 0755 "$(TARGET)" "$(DEPLOY_DIR)/bin/minishell"
 	@install -m 0644 "$(CONFIG_DIR)/config.conf" "$(DEPLOY_DIR)/config/config.conf"
+	@install -m 0644 "$(CONFIG_DIR)/devices.conf" "$(DEPLOY_DIR)/config/devices.conf"
 
 arm64-package:
 	@command -v $(ARM64_CC) >/dev/null 2>&1 || { \
@@ -277,6 +368,7 @@ install: $(TARGET)
 	@install -d "$(INSTALL_CONFIGDIR)"
 	@install -m 0755 "$(TARGET)" "$(INSTALL_BINDIR)/minishell"
 	@install -m 0644 "$(CONFIG_DIR)/config.conf" "$(INSTALL_CONFIGDIR)/config.conf"
+	@install -m 0644 "$(CONFIG_DIR)/devices.conf" "$(INSTALL_CONFIGDIR)/devices.conf"
 	@echo "  Installed:"
 	@echo "    $(INSTALL_BINDIR)/minishell"
 	@echo "    $(INSTALL_CONFIGDIR)/config.conf"
@@ -287,6 +379,7 @@ uninstall:
 	@echo "  Root   : $(DESTDIR)"
 	@rm -f "$(INSTALL_BINDIR)/minishell"
 	@rm -f "$(INSTALL_CONFIGDIR)/config.conf"
+	@rm -f "$(INSTALL_CONFIGDIR)/devices.conf"
 	@rmdir "$(INSTALL_BINDIR)" 2>/dev/null || true
 	@rmdir "$(INSTALL_CONFIGDIR)" 2>/dev/null || true
 	@rmdir "$(DESTDIR)$(PREFIX)" 2>/dev/null || true
@@ -317,6 +410,31 @@ $(INTEGRATION_TARGET): $(INTEGRATION_OBJ)
 	@echo "  LD      $@"
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
+$(GPIO_PROBE_TARGET): $(GPIO_PROBE_OBJ)
+	@mkdir -p $(dir $@)
+	@echo "  LD      $@"
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+$(I2C_PROBE_TARGET): $(I2C_PROBE_OBJ)
+	@mkdir -p $(dir $@)
+	@echo "  LD      $@"
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+$(OLED_DEMO_TARGET): $(OLED_DEMO_OBJ)
+	@mkdir -p $(dir $@)
+	@echo "  LD      $@"
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+$(SERIAL_TEST_TARGET): $(SERIAL_TEST_OBJ)
+	@mkdir -p $(dir $@)
+	@echo "  LD      $@"
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+$(WATCHDOG_DEMO_TARGET): $(WATCHDOG_DEMO_OBJ)
+	@mkdir -p $(dir $@)
+	@echo "  LD      $@"
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
 $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@echo "  CC      $<"
@@ -343,7 +461,7 @@ integration: $(TARGET) $(INTEGRATION_TARGET)
 	MINISHELL_TEST_DIR="./$(BUILD_DIR)" \
 	./$(INTEGRATION_TARGET)
 
-check: test integration shell
+check: test integration shell gpio-probe i2c-probe oled-demo serial-test watchdog-demo
 
 debug:
 	@$(MAKE) \
@@ -411,6 +529,7 @@ cppcheck:
 		-I$(CONFIG_DIR) \
 		-I$(TEST_DIR) \
 		$(SRC_DIR) \
+		$(TOOLS_DIR) \
 		$(COMMON_DIR) \
 		$(CONFIG_DIR) \
 		$(TEST_DIR)
@@ -421,7 +540,9 @@ clean:
 	@echo "  CLEAN"
 	rm -rf build
 	rm -rf dist
+	rm -rf Testing
 	rm -f $(RUN_TARGET)
+	rm -f gpio_probe i2c_probe oled_demo serial_test watchdog_demo
 
 help:
 	@echo "MiniShell build system"
@@ -432,6 +553,12 @@ help:
 	@echo "  make native          Build native MiniShell"
 	@echo "  make arm64           Cross-compile ARM64 MiniShell"
 	@echo "  make run             Build and run native MiniShell"
+	@echo "  make gpio-probe      Build GPIO hardware probe"
+	@echo "  make i2c-probe       Build I2C hardware probe"
+	@echo "  make oled-demo       Build OLED demo under build/default"
+	@echo "  make oled-font       Regenerate OLED font source"
+	@echo "  make serial-test     Build UART serial test tool"
+	@echo "  make watchdog-demo   Build hardware watchdog demo"
 	@echo ""
 	@echo "Deployment:"
 	@echo "  make package         Create optimized native deployment package"
@@ -443,7 +570,7 @@ help:
 	@echo "Tests:"
 	@echo "  make test            Build and run unit tests"
 	@echo "  make integration     Build and run integration tests"
-	@echo "  make check           Run unit + integration tests"
+	@echo "  make check           Run tests and build hardware tools"
 	@echo ""
 	@echo "Quality:"
 	@echo "  make asan            Run tests with ASan + LSan + UBSan"
@@ -461,5 +588,4 @@ help:
 	@echo "  make help            Show this help"
 
 -include $(DEPS)
-
 

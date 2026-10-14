@@ -2,6 +2,47 @@
 
 ## 本文件用以记录MiniShell在Orange Pi 5 Plus ARM Linux平台下的开发以及运行情况
 
+下方原有Shell Core、Runtime Manager以及Board Interface Audit保留历史板端结果,本轮V1.8结果单独记录.
+
+后续GPIO、I2C OLED以及UART Hardware Foundation记录分别见gpio.md、i2c_oled.md以及uart_serial.md.
+
+本次V1.8 Device Runtime已经在真实开发板完成软件以及Board LED集成检查,旧PASS不作为新增设备命令或者STM32协议的实物验收结果.
+
+## V1.8板端检查
+
+当前通过SSH连接Orange Pi 5 Plus,使用独立Review目录构建以及运行,原有MiniShell工程保持原状.
+
+本次环境为Ubuntu 20.04、Linux 6.1.43以及aarch64.
+
+```text
+bash scripts/check_release.sh       15 / 15 PASS
+Normal / Strict Unit Test          146 Cases PASS
+Normal / Strict Integration Test   49 Cases,396 Assertions PASS
+ASan / LSan / UBSan                 PASS
+cppcheck                           PASS
+CMake Debug / Release              PASS
+ARM64 Native Runtime               PASS
+ARM Runtime Stability              PASS
+Package / Install                  PASS
+Valgrind                           PASS
+```
+
+额外确认/dev/ttyS3、/dev/i2c-4以及Board LED接口存在,gpiochip1对应gpio1,Line 30对应GPIO1_D6.
+
+UART无外设PING在约1.002s返回Timeout,Shell继续运行;20次Open / Close后FD回到基线.
+
+Board LED通过用户sudo完成On / Off / Heartbeat以及20次Open / On / Off / Close,随后通过SSH读取日志核对,结束后Trigger恢复为heartbeat.
+
+本轮Runtime Stability中FD为5 -> 5,RSS为496KB -> 1380KB,增长884KB,在当前检查阈值内,未发现Zombie且正常退出.
+
+以上为本次短期压力以及循环检查,不作为多日或者长期稳定性结论.
+
+当前没有连接STM32、OLED以及外部Button,对应通信、显示以及物理输入仍待验收.
+
+本轮没有启动Hardware Watchdog,不会将Issue #25标记为Done.
+
+详细结果以及接线依据见docs/device_validation.md.
+
 ## 当前开发环境
 
 ```
@@ -554,9 +595,9 @@ Serial:
 /dev/ttyS9
 ```
 
-这些接口当前只进行Audit.
+这些接口在当时只进行Audit.
 
-当前没有加入:
+当时没有加入:
 
 ```
 UART Device Layer
@@ -565,7 +606,9 @@ SPI Device Layer
 外接GPIO设备
 ```
 
-相关设备功能留到后续版本.
+后续已经完成独立Hardware Foundation,本次Device Layer进一步加入同步设备管理.
+
+当前新增实物验收步骤见docs/device_validation.md.
 
 ## Config部署路径
 
@@ -802,7 +845,7 @@ ASAN_OPTIONS
 
 不会影响MiniShell正常运行逻辑.
 
-## 当前测试结果
+## 此前Runtime Manager测试结果
 
 Orange Pi 5 Plus当前验证:
 
@@ -821,7 +864,7 @@ Integration Test:
 
 ProcessMonitor测试会根据当前系统Process数量执行部分排序Assertion,因此Assertion数量可能随运行环境变化.
 
-## 当前最终状态
+## 此前Runtime Manager最终状态
 
 ```
 Orange Pi 5 Plus平台确认         PASS

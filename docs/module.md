@@ -6,7 +6,7 @@
 
 - shell.c: 控制Shell整体运行流程,负责初始化、select主循环、输入缓冲、Signal/Event处理以及资源释放
 
-- shell_context.c: 管理Shell运行状态,统一保存JobManager、配置、稳定config路径、输入缓冲以及last_exit_status
+- shell_context.c: 管理Shell运行状态,统一保存JobManager、DeviceManager、配置、稳定配置路径、输入缓冲以及last_exit_status
 
 - parser.c: 负责命令解析,将用户输入Tokenize后写入Command结构体以及Command链,并区分语法失败与内存失败状态
 
@@ -16,11 +16,33 @@
 
 - executor.c: 负责外部命令执行,实现fork、execvp、Process Group、startup gate、Pipeline、重定向、失败rollback以及Foreground Job等待
 
-- builtin.c: 负责Shell内部命令实现,包括cd、pwd、exit、help、jobs、status、sysinfo、monitor、psinfo、dtinfo、hwinfo、led、fg、bg、reload等指令
+- builtin.c: 负责Shell内部命令实现,包括cd、pwd、exit、help、jobs、status、sysinfo、monitor、psinfo、dtinfo、hwinfo、led、fg、bg、reload以及device等指令
 
 - builtin_table.c: 负责Builtin指令集中注册以及查询,避免dispatcher内部大量if/else判断
 
 - commands/cmd_runtime.c: 负责Runtime相关命令参数处理以及Console输出,当前实现monitor以及psinfo
+
+- cmd_device.c: 负责device命令参数、类型检查、显式Open以及Console输出
+
+- device.c: 负责统一Device生命周期、DeviceOps调用、状态以及last_errno
+
+- device_config.c: 负责devices.conf解析、类型参数检查以及事务式配置加载
+
+- device_manager.c: 负责设备登记、查找、配置替换、批量关闭以及销毁
+
+- device_backend.c: 复用已有访问层实现UART、I2C、OLED、GPIO以及LED DeviceOps
+
+- uart_protocol.c: 负责UART同步一问一答、Reply检查以及整体Timeout
+
+- serial_port.c: 负责Linux TTY打开、Raw termios、字节流读写以及poll等待
+
+- i2c_bus.c: 负责Linux i2c-dev打开、地址选择以及数据访问
+
+- gpio_line.c: 负责Linux GPIO Character Device输入以及输出
+
+- oled.c/oled_font.c: 负责OLED Framebuffer、文本绘制以及I2C刷新
+
+- watchdog_device.c: 保留独立Watchdog Foundation访问层,本次不加入DeviceManager
 
 - sig.c: 负责Signal初始化、事件记录、Shell退出时Signal关闭以及Child执行前默认Signal恢复
 
@@ -68,6 +90,8 @@ JobManager
 last_exit_status
 MiniShellConfig
 config_file
+DeviceManager devices
+devices_file
 input_buffer
 input_length
 input_discarding
@@ -281,6 +305,62 @@ network_interfaces
 network_count
 leds
 led_count
+```
+
+## Device数据结构
+
+DeviceConfig:
+
+```text
+name
+type
+path
+enabled
+baudrate
+address
+offset
+gpio_output
+initial_value
+bias
+led_name
+```
+
+Device:
+
+```text
+config
+ops
+context
+state
+opened
+last_errno
+```
+
+DeviceOps:
+
+```text
+open
+read
+write
+control
+close
+destroy
+```
+
+DeviceManager:
+
+```text
+devices[DEVICE_MAX_COUNT]
+count
+```
+
+Device状态:
+
+```text
+DEVICE_CLOSED
+DEVICE_OPEN
+DEVICE_ERROR
+DEVICE_DISABLED
 ```
 
 ## Job状态
@@ -535,6 +615,42 @@ src/commands/cmd_runtime.c
 Command Layer只负责参数以及输出.
 
 底层Runtime模块不直接依赖ShellContext或者Builtin.
+
+## Device相关函数
+
+- device_init: 初始化Device配置、Backend以及状态
+
+- device_open: 打开启用设备,正常OPEN时保持幂等
+
+- device_read/device_write/device_control: 检查生命周期以后调用DeviceOps
+
+- device_close: 关闭设备,允许重复关闭
+
+- device_destroy: 关闭设备并释放Backend Context
+
+- device_config_load: 完整解析devices.conf,失败时保留原DeviceConfigList
+
+- device_config_validate: 检查DeviceConfig字段以及类型参数
+
+- device_backend_init: 根据设备类型创建Backend Context以及DeviceOps
+
+- device_manager_register: 按Name登记设备,检查重复Name以及数量上限
+
+- device_manager_find/device_manager_get: 按Name或者Index获取设备
+
+- device_manager_load: 拒绝替换已打开设备,完整准备成功以后替换旧集合
+
+- device_manager_close_all/device_manager_destroy: 批量关闭并销毁设备
+
+- uart_protocol_request: 在整体Deadline内发送一行Request并检查Reply
+
+- cmd_device: 处理device命令、显式Open以及输出
+
+具体配置字段、命令以及协议见:
+
+```text
+docs/device_layer.md
+```
 
 ## RuntimeMonitor相关函数
 
@@ -808,6 +924,7 @@ led
 fg
 bg
 reload
+device
 ```
 
 Runtime相关Builtin:
@@ -903,15 +1020,33 @@ Shell:
 ```
 Shell退出
  |
+shell_context_destroy
+ |
 job_shutdown
+ |
+device_manager_destroy
  |
 signal_shutdown
  |
 event_shut
  |
 terminal_shutdown
+```
+
+Device:
+
+```text
+配置加载
  |
-shell_context_destroy
+Backend Context创建
+ |
+显式Open
+ |
+同步访问
+ |
+Device关闭
+ |
+Context释放
 ```
 
 Sysfs:
@@ -972,6 +1107,20 @@ close
 
 - test_command.c: 测试Command初始化以及资源释放
 
+- test_device.c: 使用Fake DeviceOps检查Device状态、操作错误以及生命周期
+
+- test_device_config.c: 检查类型参数、必需字段、重复字段以及事务解析
+
+- test_device_manager.c: 检查登记、查找、Reload、批量关闭以及Context释放
+
+- test_device_backend.c: 检查各类型Backend创建以及非法操作
+
+- test_serial_port.c: 使用PTY检查Raw UART、poll、Timeout以及FD释放
+
+- test_uart_protocol.c: 使用PTY检查PING、STATUS、LED、HEARTBEAT以及Reply错误
+
+- test_stm32_uart_protocol.c: 检查可移植STM32请求处理器以及分段字节输入
+
 ## Integration测试文件
 
 - test_integration_main.c: Integration Test入口
@@ -979,6 +1128,8 @@ close
 - test_shell_runner.c: 启动真实MiniShell,使用pipe/poll/monotonic deadline运行脚本并收集输出
 
 - test_shell_basic.c: 测试基础命令以及monitor/psinfo Runtime Command
+
+- test_shell_device.c: 测试设备列表、显式Open、错误恢复、配置Reload以及PTY协议命令
 
 - test_shell_redirect.c: 测试输入/输出/追加重定向
 
@@ -1010,7 +1161,7 @@ Runtime Monitor
 Process Monitor
 ```
 
-## 当前测试状态
+## 此前Runtime Manager测试状态
 
 Orange Pi 5 Plus当前验证:
 
@@ -1028,3 +1179,5 @@ Integration Test:
 ```
 
 ProcessMonitor测试会根据当前系统Process数量执行部分排序Assertion,因此Assertion数量可能随运行环境变化.
+
+V1.8新增设备测试以及实物验收范围见docs/test.md以及docs/device_validation.md.
